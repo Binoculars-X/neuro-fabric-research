@@ -61,7 +61,7 @@
   - CPU SGD: 51 ms/sample, loss 5.47 @8k
   - GPU SGD: 11 ms/sample, loss 5.43 @8k (4.4× faster, identical convergence)
   - GPU Adam: 18 ms/sample, loss **2.71 @8k** — Adam critical for large-vocab models
-- GPU Adam plateau: **1.67 @ 80K samples** → TinyStories single-chip upper bound
+- GPU Adam plateau: **1.67 @ 80K samples** ⚠️ *[INVALID — in-sample, no train/val split; see Day 9]* → TinyStories single-chip upper bound
 - CPU Adam float32: 296 ms/sample, loss 2.95 @8k; BF16 moments variant: 337 ms/sample, loss 2.94
 - **BF16 moments finding:** naive truncation degrades convergence — FP32 moments required
 - CPU SGD to 2.18M samples: loss 2.60 → **optimizer gap: ~0.34 loss, 27× more samples**
@@ -70,7 +70,7 @@
 
 ## 25/05/26 — Day 6: Paper v2 Experiments + CPU SGD Plateau
 
-- CPU SGD plateau confirmed: **1.97 @ 2.24M samples** (slowly descending ~0.03/50K)
+- CPU SGD plateau confirmed: **1.97 @ 2.24M samples** ⚠️ *[INVALID — in-sample, no train/val split; see Day 9]* (slowly descending ~0.03/50K)
 - BF16 moments (m=BF16, v=BF16) run to 43K: loss 2.75, gap vs GPU Adam widening → **design rejected**
 - Revised design: **w=BF16, m=FP32, v=FP32** — 50% weight SRAM saving, zero convergence penalty
 - Concurrent CPU SGD + CPU BF16 Adam on R9 9900x: no interference (both memory-bound)
@@ -85,10 +85,12 @@
 
 | Params | embedDim | Floor @80K | BF16W SRAM | FP32 training SRAM |
 |---|---|---|---|---|
-| ~380K | 80 | ~1.85 | 0.76 MB | **5.5 MB ← ZCU102 fits** |
-| ~590K | 104 | ~1.77 | 1.18 MB | 8.5 MB |
-| ~800K | 96 | **~1.64** | 1.60 MB | 11.5 MB |
-| ~1M | 128 | ~1.67 | 2.00 MB | 14.4 MB |
+| ~380K | 80 | ~1.85 ⚠️ | 0.76 MB | **5.5 MB ← ZCU102 fits** |
+| ~590K | 104 | ~1.77 ⚠️ | 1.18 MB | 8.5 MB |
+| ~800K | 96 | **~1.64** ⚠️ | 1.60 MB | 11.5 MB |
+| ~1M | 128 | ~1.67 ⚠️ | 2.00 MB | 14.4 MB |
+
+*⚠️ Floor estimates are in-sample (no train/val split); see Day 9 for retraction. Relative ordering valid, absolute values unreliable.*
 
 - Capacity knee: **600K–800K**; above 800K no gain; 380K fits ZCU102 BRAM for full on-chip training
 - CPU FP32 Adam 600K and 400K runs started (100K samples each, ~300 ms/sample)
@@ -154,3 +156,21 @@
 - Research repo to hold: journal, experiment reports, paper `.tex`, result CSVs/plots
 - Implementation repo to hold: C# src only, no research artefacts
 - Goal: clean separation so paper codebase is citable and reproducible without training binaries
+
+---
+
+## 30/05/26 — Day 12: Param Scaling + BUG-001 Discovery
+
+- EXP-002: 334K param run (embedDim=88, ff=264, layers=4) Shakespeare char-level b=1
+- **BUG-001 found:** `TransformerBus.TrainBatch` calls `TrainStep` B times at `lr/B` — wrong for Adam
+  - For Adam, this corrupts moment estimates (B sequential noisy updates vs 1 true batch gradient)
+  - Evidence: b=1 reaches eval 1.83 at 15K samples; b=16 still at 2.13 at 15K samples (4× slower/sample)
+  - All EXP-001 b=16 results valid (still converge), just suboptimal — b=1 is strictly better per sample
+  - Fix: accumulate gradients over B samples, call `optimizer.step()` once at full lr
+  - See → [bugs/bug-001-trainbatch-sequential-adam-steps.md](bugs/bug-001-trainbatch-sequential-adam-steps.md)
+- **BUG-002 found & fixed:** linear decay resume stretches schedule denominator each resume
+  - `absoluteTotalSteps = globalStepOffset + newIterations` recalculated fresh — ignores saved `TotalSteps`
+  - LR jumped 0.000030 → 0.001141 after resuming 150K checkpoint with +100K samples
+  - Fix: use `max(bus.TotalSteps, globalStepOffset + totalSteps)` on resume
+  - See → [bugs/bug-002-linear-decay-resume-stretches-schedule.md](bugs/bug-002-linear-decay-resume-stretches-schedule.md)
+- Running 334K GPU FP32 (b=1, 80K samples) vs 334K CPU BF16W (b=1, 80K samples) in parallel
