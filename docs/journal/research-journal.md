@@ -174,3 +174,30 @@
   - Fix: use `max(bus.TotalSteps, globalStepOffset + totalSteps)` on resume
   - See → [bugs/bug-002-linear-decay-resume-stretches-schedule.md](bugs/bug-002-linear-decay-resume-stretches-schedule.md)
 - Running 334K GPU FP32 (b=1, 80K samples) vs 334K CPU BF16W (b=1, 80K samples) in parallel
+- **EXP-002 preliminary results (80K samples, b=1):**
+  - GPU Adam FP32: eval **1.5394** — clean Shakespeare structure, correct character names ✅
+  - CPU Adam BF16W: eval **1.5375** — clean demo output, matches GPU within noise ✅
+  - CPU Adam FP32: eval **1.5407** — metrics look fine, but demo output had `:s:s:s` prefix garbage ❌
+  - **Conclusion:** 80K samples sufficient for GPU and BF16W; CPU FP32 checkpoint corrupt or undertrained
+  - CPU FP32 re-run launched as **exp002-2** with 100K samples (terminal `a2e18fbc`)
+  - GPU TinyStories 1M param run also launched (terminal `fae3bd50`)
+
+---
+
+## 31/05/26 — Day 13: R1.0 Release + Researcher Quick-Start Bats
+
+- **R1.0 released** — known bugs BUG-001 and BUG-002 acknowledged but excluded from scope
+  - Constraints applied: `b=1` only (sidesteps BUG-001 sequential Adam steps); no `--resume` (sidesteps BUG-002 LR schedule stretch)
+  - Both bugs documented; fixes pending for R1.1
+- **Researcher quick-start bat files** created in `neuro-fabric/run/`:
+  - `train-gpu-adam-shakespeare.bat` — GPU Adam FP32, 334K params, 150K samples
+  - `train-cpu-adam-bf16w-shakespeare.bat` — CPU BF16W, 334K params, 150K samples, `NoGpu=true` (no CUDA required)
+  - `demo-gpu-adam-shakespeare.bat` — interactive demo from GPU checkpoint
+  - `demo-cpu-adam-bf16w-shakespeare.bat` — interactive demo from BF16W checkpoint (no CUDA)
+  - Checkpoints saved to `run/results/`; guard exits with error if checkpoint already exists
+- **`NoGpu=true` build flag** added to `TrainApp.csproj` + `#if !NO_GPU` guards in `Program.cs`
+  - CPU-only build excludes `Neuro.Gpu` / TorchSharp entirely — compiles on any .NET 10 machine
+  - Demo app already had no GPU dependency
+- **Planned R1.0 validation runs** (334K params, 150K samples, b=1, linear decay):
+  - GPU Adam FP32 Shakespeare (`train-gpu-adam-shakespeare.bat`)
+  - CPU Adam BF16W Shakespeare (`train-cpu-adam-bf16w-shakespeare.bat`)

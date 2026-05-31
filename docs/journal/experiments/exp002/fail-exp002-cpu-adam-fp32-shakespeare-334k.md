@@ -1,4 +1,6 @@
-# EXP-002 — CPU Adam FP32 — Shakespeare char-level — 334K params — b=1
+# ⛔ FAIL — EXP-002 — CPU Adam FP32 — Shakespeare char-level — 334K params — b=1
+
+> **EXCLUDED — UNDERTRAINED:** Only 80K samples. Demo output contains significant garbage (`:s:s:s` prefix artifacts, incoherent token sequences). Checkpoint is corrupt or insufficient for valid generation. Re-run as exp002-2 with 100K samples.
 
 ## Summary
 
