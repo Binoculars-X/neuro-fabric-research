@@ -1,10 +1,13 @@
 # BUG-006 — Adam bias correction uses per-matrix step count — `_step` inflated 4-6× real training step
 
 ## Status
-🐛 Confirmed — fix identified, not yet applied
+✅ Fixed — release v1.0.2 (commit `86642e2`, 02/06/26)
 
 ## Discovered
 01/06/26 — Day 14. Code review during investigation of bug-003 (CPU FP32 demo noise).
+
+## Fixed
+02/06/26 — Day 15. Option A implemented: `GlobalStep` counter in `TransformerBus` incremented once per `TrainStep`, passed through `Backward(dX, lr, step)` → `ApplyUpdate(w, grad, lr, step)`. `_step++` removed from all 6 Adam `ApplyUpdate` overrides.
 
 ## Root Cause
 

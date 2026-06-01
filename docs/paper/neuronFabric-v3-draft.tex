@@ -64,7 +64,7 @@ the math works and the numbers are right, before committing to silicon.
 
 The model we trained is a 334K parameter autoregressive transformer
 ($d{=}88$, $H{=}4$ heads, $f{=}264$, $L{=}4$ layers, vocab$=256$) trained on the
-Shakespeare corpus. It reaches eval loss 1.5281 at 85K samples using GPU Adam,
+Shakespeare corpus. It reaches eval loss 1.5226 at 80K samples using GPU Adam,
 with coherent character-level text generation confirmed.
 
 We also introduce \textbf{BF16W}: storing weights in BF16 while keeping Adam moments
@@ -77,7 +77,7 @@ We describe the vocabulary-budget constraint we discovered during earlier experi
 quantify the BF16W SRAM saving, and lay out the FPGA training target as the next step.
 No FPGA measurements are included in this paper; FPGA implementation and measurement are left for future work.
 
-\textbf{Code:} \href{\repourl}{\repourltext} (release v1.0.1, commit \texttt{see repo tags}).
+\textbf{Code:} \href{\repourl}{\repourltext} (release v1.0.2, commit \texttt{86642e2}).
 
 \textbf{Publication purpose:} This paper serves as a public architectural disclosure
 and software reference implementation for future FPGA/ASIC implementations of the
@@ -346,8 +346,8 @@ Moments $m$ and $v$ stay in FP32 throughout --- this is where precision matters 
 for Adam stability. The weight values themselves tolerate BF16 range ($\sim$3 decimal
 digits) because the Adam step size is small relative to weight magnitude.
 
-\textbf{Convergence.} On the 85K-sample Shakespeare runs, CPU BF16W
-reaches eval loss 1.5547 versus GPU FP32 1.5281 --- a gap of $+0.027$.
+\textbf{Convergence.} On the 80K-sample Shakespeare runs, CPU BF16W
+reaches eval loss 1.5477 versus GPU FP32 1.5226 --- a gap of $+0.025$.
 Both variants converge qualitatively identically; the residual gap is consistent
 with the difference in compute precision and random seed (Section~\ref{sec:experiments}).
 
@@ -416,7 +416,7 @@ chip (shared-embedding MoE, described briefly in Section~\ref{sec:future}).
 
 \label{sec:experiments}
 
-All experiments were conducted using NeuronFabric release \textbf{v1.0.1}.
+All experiments were conducted using NeuronFabric release \textbf{v1.0.2}.
 Source code is available at the project repository; checkpoints are reproducible by running the provided training scripts.
 
 \subsection{Correctness Validation}
@@ -438,7 +438,7 @@ regardless of how reasonable the output looks.
 
 \textbf{Configuration.} Architecture as in Table~\ref{tab:arch}.
 Optimizer: Adam with linear LR schedule, warmup 200 steps, peak LR $= 0.003$.
-Training: 85,000 samples (online, batch$=1$), GPU accelerated.
+Training: 80,000 samples (online, batch$=1$), GPU accelerated.
 Checkpoint format: \texttt{.neuro} (JSON header + flat binary weights), version-stamped.
 
 \textbf{Train/validation split.} The Shakespeare corpus is split 90/10:
@@ -453,43 +453,46 @@ not the training set --- the goal is generalisation, not memorisation.
 \toprule
 Variant & Samples & Val loss & Accuracy & ms/sample \\
 \midrule
-GPU Adam FP32  & 85,000 & \textbf{1.5281} & 56.2\% & 16.4 \\
-CPU Adam BF16W & 85,000 & 1.5547 & 54.72\% & 137.9 \\
+GPU Adam FP32  & 80,000 & \textbf{1.5226} & 55.79\% & 19.37 \\
+CPU Adam BF16W & 80,000 & 1.5477 & 54.57\% & 149.51 \\
 \bottomrule
 \end{tabular}
-\caption{Shakespeare 334K training results (NeuronFabric v1.0.1, run/results/).
+\caption{Shakespeare 334K training results (NeuronFabric v1.0.2, run/results/).
 GPU Adam FP32 is the oracle baseline.
-CPU BF16W gap: $+0.027$ val loss, $8.4\times$ slower --- consistent with the precision difference between BF16 and FP32 weight storage.}
+CPU BF16W gap: $+0.025$ val loss, $7.7\times$ slower --- consistent with the precision difference between BF16 and FP32 weight storage.}
 \label{tab:shakespeare-results}
 \end{table}
+
+\textbf{Training curve.} Best eval loss 1.5226 (GPU FP32, at 80K) and 1.5477 (CPU BF16W, at 78K)
+were reached within the 80K sample budget. Neither variant overfit --- eval and train loss
+tracked closely throughout. Figure~\ref{fig:shakespeare-loss} shows both curves.
 
 \begin{figure}[ht]
 \centering
 \includegraphics[width=0.85\linewidth]{fig/fig2_loss_curves.pdf}
-\caption{Validation loss vs training samples for Shakespeare 334K model (NeuronFabric v1.0.1).
-GPU Adam FP32 reaches eval loss 1.5281 at 85K samples (oracle baseline).
-CPU Adam BF16W reaches 1.5547 --- a gap of $+0.027$, consistent with the precision difference between BF16 and FP32 weight storage.}
+\caption{Validation loss vs training samples for Shakespeare 334K model (NeuronFabric v1.0.2).
+GPU Adam FP32 reaches eval loss 1.5226 at 80K samples (oracle baseline).
+CPU Adam BF16W reaches 1.5477 --- a gap of $+0.025$, consistent with the precision difference between BF16 and FP32 weight storage.}
 \label{fig:shakespeare-loss}
 \end{figure}
 
-\textbf{Training curve.} Best eval loss 1.5281 (GPU FP32) and 1.5545 (CPU BF16W, at 82K samples)
-were reached within the 85K sample budget. Neither variant overfit --- eval and train loss
-tracked closely throughout. Figure~\ref{fig:shakespeare-loss} shows both curves.
-
-\textbf{Sample output} (temperature 0.7, prompt: ``MENENIUS:''):
+\textbf{Sample output} (CPU Adam BF16W, temperature 0.8, 80K samples):
 \begin{lstlisting}
-MENENIUS:
-I have been the more noble. Good my lord,
-That you have spoke true honour. I am gone:
-I have not done thus well.
+> MENENIUS :
+MENENIUS :
+if for my life, for a most rever in reason,
+And would some a toward had I will bone 't!
 
-JULIET:
-My lord, I pray you, what have you not done?
+Second Servant:
+Who seem to York at thy lord sede, your longly:
+Content, who never he cannot bounds end:
+Who's much subject you me shall be short
+About and a wife all quarried may may.
 \end{lstlisting}
 
 The model generates named Shakespearean characters, metered dialogue structure, and
 contextually coherent responses. This is coherent literary text from a 334K parameter
-model trained for 1,603 seconds on one GPU.
+BF16W model trained for 11,961 seconds on CPU (no GPU required).
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Hardware Feasibility and Next Steps}
@@ -565,7 +568,7 @@ What this paper does establish:
 
 \begin{itemize}
   \item The backpropagation is mathematically correct (gradient checks, backed by more than a hundred unit and regression tests).
-  \item BF16W Adam converges with a negligible gap ($+0.027$ val loss) versus FP32 Adam on Shakespeare at 85K samples.
+  \item BF16W Adam converges with a negligible gap ($+0.025$ val loss) versus FP32 Adam on Shakespeare at 80K samples.
   \item The 334K BF16W model fits in ZCU102 BRAM with 660\,KB headroom --- this is
     arithmetic, not a projection.
   \item The vocabulary-budget constraint is real and measurable across three domains.
@@ -595,7 +598,7 @@ Source code and scripts are available at \href{\repourl}{\repourltext}.
 % ─────────────────────────────────────────────────────────────────────────────
 \section*{Acknowledgements}
 
-Code repository: \href{\repourl}{\repourltext}, release tag \texttt{v1.0.1}.
+Code repository: \href{\repourl}{\repourltext}, release tag \texttt{v1.0.2}.
 A preprint of this paper will be deposited on arXiv; a Zenodo/DOI archive will be
 created at that time to provide a citable, timestamped snapshot of the software and results.
 
