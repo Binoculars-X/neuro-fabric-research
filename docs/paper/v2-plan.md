@@ -2,6 +2,32 @@
 
 **Working title:** *NeuronFabric: A Software Reference Architecture for On-Chip Transformer Training with Local Adam*
 
+---
+
+## Status (01/06/26)
+
+**Two results rows in paper:**
+- GPU Adam FP32: 1.5281 @ 85K ← oracle baseline
+- CPU Adam BF16W: in progress (fixed run, post bug-005) ← primary claim
+
+CPU FP32 **removed from paper** — broken demo output, adds no value to FPGA/ASIC argument.
+
+**Paper sections:**
+- ✅ Introduction
+- ✅ Architecture + BF16W
+- ✅ Shakespeare results table (2 rows)
+- ✅ Figure 1: arch_334k.pdf (FPGA diagram + SRAM budget)
+- ⏳ Figure 2: loss curve (pending BF16W result)
+- ✅ Hardware Feasibility / FPGA target
+- ✅ TinyStories 442K section: **removed** (internal experiment, not paper scope)
+
+**Immediate next steps:**
+1. BF16W run completes → update table row 2 + Figure 2 caption
+2. Generate Figure 2 loss curve plot
+3. Upload arch_334k.pdf to Overleaf fig/
+
+---
+
 ## Market Positioning — The Gap We Own
 
 **Neuromorphic chips** (Intel Loihi, SpiNNaker, BrainChip) learn on-chip but use STDP —
@@ -95,14 +121,13 @@ The 443K config is also the "universal" chip: it can train on Shakespeare (vocab
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│           NeuronFabric 443K — Canonical FPGA Config             │
-│          embed=88  heads=4  ff=264  layers=4  vocab=1501        │
+│        NeuronFabric 334K — Shakespeare FPGA Config              │
+│        embed=88  heads=4  ff=264  layers=4  vocab=256           │
 ├─────────────────────────────────────────────────────────────────┤
 │  INPUT                                                          │
-│  token [1..1501] ──► Embedding SRAM                            │
-│                      vocab×embed = 1501×88                      │
-│                      [  528 KB provisioned  ]                   │
-│                      [  90 KB used for Shakespeare  ]           │
+│  token [0..255] ──► Embedding SRAM                             │
+│                     vocab×embed = 256×88                        │
+│                     [  88 KB  ]                                 │
 ├─────────────────────────────────────────────────────────────────┤
 │  TRANSFORMER CORE  (×4 identical layers)                        │
 │                                                                 │
@@ -122,15 +147,15 @@ The 443K config is also the "universal" chip: it can train on Shakespeare (vocab
 │  OUTPUT                                                         │
 │  logits = layerOut · Embedding.T   (weight-tied, no extra params)│
 ├─────────────────────────────────────────────────────────────────┤
-│  SRAM BUDGET (ZCU102 = 4.5 MB)                                 │
+│  SRAM BUDGET (ZCU102 = 4.0 MB)                                 │
 │                                                                 │
-│  BF16W  ████████████████████████░░  4.23 MB / 4.5 MB  ✓       │
-│  FP32   ██████████████████████████████  5.32 MB  ✗ overflow    │
+│  BF16W  ████████████████████████░░░░  3.34 MB / 4.0 MB  ✓     │
+│  FP32   ████████████████████████████  4.00 MB  ✗ no headroom   │
 │                                                                 │
 │  Breakdown (BF16W):                                             │
-│    Weights  (BF16): 443K × 2 B = 0.89 MB                      │
-│    Moments  (FP32): 443K × 8 B = 3.34 MB  (m + v)             │
-│    Total:                        4.23 MB  ← fits ✓             │
+│    Weights  (BF16): 334K × 2 B = 0.67 MB                      │
+│    Moments  (FP32): 334K × 8 B = 2.67 MB  (m + v)             │
+│    Total:                        3.34 MB  ← 660 KB headroom ✓  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 

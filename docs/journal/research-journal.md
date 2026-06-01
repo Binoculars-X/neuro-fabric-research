@@ -201,3 +201,18 @@
 - **Planned R1.0 validation runs** (334K params, 150K samples, b=1, linear decay):
   - GPU Adam FP32 Shakespeare (`train-gpu-adam-shakespeare.bat`)
   - CPU Adam BF16W Shakespeare (`train-cpu-adam-bf16w-shakespeare.bat`)
+
+---
+
+## 01/06/26 — Day 14: TinyStories Convergence Analysis + Paper Figures
+
+- **Shakespeare 334K canonical results** (85K samples, run/results/):
+  - GPU FP32: eval **1.5281**, 56.2%, 16.4 ms/sample ← oracle
+  - CPU FP32: eval **1.5425**, 55.3%, 201.5 ms/sample (+0.014 gap, 12.3× slower)
+  - CPU BF16W (post bug-004/005): eval **1.5547**, best **1.5545 @ 82K**, 54.72%, 137.9 ms/sample ✅
+- **BUG-004:** `_step` private in base shadowed by derived BF16W classes — bias correction resets. Fix: `private→protected` in 3 bases, remove shadow in 6 derived classes. 107/107 tests pass.
+- **BUG-005:** BF16W FP32 master overwritten from BF16 decode — sub-BF16 updates lost. Fix: `w[i,j] = wf`. Confirmed by re-run.
+- **BUG-003 (CPU FP32 `aW` artifact):** Investigated — model memorized bytes 97+87 as zero-context prior. GPU FP32 and BF16W unaffected. Quantitative comparison: statistically identical char distribution. CPU FP32 removed from paper.
+- **Paper:** CPU FP32 row removed; TinyStories 442K section removed; `\repourl` macro added; run/ scripts listed in Reproducibility; double References fixed; DRAFT watermark added; cs.AR submission in progress (endorsement requested from Prof. Cheung).
+- **BF16W demo (85K):** coherent Shakespeare dialogue, no garbage artifact. Gap vs GPU: +0.027 eval loss (1.7%).
+- **exp002b created:** `exp002-cpu-adam-bf16w-shakespeare-334k-85k.md` + .neuro + .log archived.
