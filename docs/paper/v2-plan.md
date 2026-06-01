@@ -1,5 +1,33 @@
 # NeuronFabric — Paper v2 Plan
 
+**Working title:** *NeuronFabric: A Software Reference Architecture for On-Chip Transformer Training with Local Adam*
+
+---
+
+## Status (01/06/26)
+
+**Two results rows in paper:**
+- GPU Adam FP32: 1.5281 @ 85K ← oracle baseline
+- CPU Adam BF16W: in progress (fixed run, post bug-005) ← primary claim
+
+CPU FP32 **removed from paper** — broken demo output, adds no value to FPGA/ASIC argument.
+
+**Paper sections:**
+- ✅ Introduction
+- ✅ Architecture + BF16W
+- ✅ Shakespeare results table (2 rows)
+- ✅ Figure 1: arch_334k.pdf (FPGA diagram + SRAM budget)
+- ⏳ Figure 2: loss curve (pending BF16W result)
+- ✅ Hardware Feasibility / FPGA target
+- ✅ TinyStories 442K section: **removed** (internal experiment, not paper scope)
+
+**Immediate next steps:**
+1. BF16W run completes → update table row 2 + Figure 2 caption
+2. Generate Figure 2 loss curve plot
+3. Upload arch_334k.pdf to Overleaf fig/
+
+---
+
 ## Market Positioning — The Gap We Own
 
 **Neuromorphic chips** (Intel Loihi, SpiNNaker, BrainChip) learn on-chip but use STDP —
@@ -52,69 +80,99 @@ just benchmarks.
 
 ## The Thesis (one sentence)
 
-> A transformer with full backpropagation can run entirely on a fixed-budget chip
-> with weights permanently in local SRAM — and the two binding design constraints
-> are the **vocabulary-to-parameter ratio** and the **choice of on-chip weight update rule**.
+> The long-term goal is a silicon chip where every neuron runs Adam locally — weights update in place, no gradient traffic off-chip, scaling limited only by the number of chips connected via axon data links.
+> Paper 1 establishes the software proof that this is numerically viable.
 
 ---
 
 ## What the Paper Must Show
 
 ### 1. The goal of the project
-Every existing neural accelerator either does inference only (Groq, Apple ANE, IBM NorthPole)
-or offloads the weight update to a host CPU (Cerebras, Tenstorrent).
-NeuronFabric's goal is to close that gap: **one chip, weights in SRAM, full forward +
-backward + weight update, no host involvement, no off-chip weight traffic.**
 
-This is not incremental — it is a different architecture class.
+The ultimate target is a **silicon chip where every neuron holds its own weights and runs Adam locally** — potentially in analogue circuitry. No gradient bus. No host optimizer. Scaling is achieved by connecting chips via axon data links only (activations forward, nothing backward off-chip). This is the architecture the brain uses at a functional level.
+
+Paper 1 does not claim silicon. It establishes the **software reference proof**: local Adam in pure C# converges identically to GPU Adam. This is the numerical foundation that makes the FPGA and silicon steps credible.
+
+Every existing accelerator either does inference only (Groq, Apple ANE, IBM NorthPole) or offloads the weight update to a host CPU (Cerebras, Tenstorrent). NeuronFabric closes that gap.
 
 ### 2. What we have already proved
 
-| Claim | Evidence |
-|---|---|
-| Transformer backprop can run entirely in C# with no ML framework | 61 unit + gradient-check tests passing |
-| SRAM-local weight update is numerically identical to GPU SGD | CPU SGD = GPU SGD loss curve (within float32 tolerance) |
-| Vocabulary tax is the dominant constraint at 100K params | Three-domain table: vocab=49 → loss 0.42; vocab=302 → loss 2.05; vocab=1501 (100K params) → loss 2.90 |
-| On-chip Adam can be implemented in pure C# as silicon reference | `CpuAdamTransformerBus` — 7 tests passing, 2.95 loss @8k vs GPU Adam 2.71 |
-| BF16 moments reduce SRAM from 1.2 MB → 800 KB with negligible loss | `CpuAdamBF16TransformerBus` — within 10% of float32 Adam at step 50 |
-| 1M param TinyStories is a meaningful single-chip benchmark | Adam ceiling ~1.67 loss; SGD ceiling ~2.4–2.5 (run in progress) |
+| Claim | Evidence | Status |
+|---|---|---|
+| Transformer backprop can run entirely in C# with no ML framework | 61 unit + gradient-check tests passing | ✅ |
+| SRAM-local weight update is numerically identical to GPU SGD | CPU SGD = GPU SGD loss curve (within float32 tolerance) | ✅ |
+| Vocabulary tax is the dominant constraint at small param budgets | Three-domain table: vocab=49 → loss 0.42; vocab=302 → loss 2.05; vocab=1501 → TBD (EXP-001) | ⏳ clean number pending |
+| On-chip Adam can be implemented in pure C# as silicon reference | `CpuAdamTransformerBus` — tests passing | ✅ |
+| BF16W (w=BF16, m=FP32, v=FP32) zero convergence penalty | Appointment corpus only — TinyStories parity unknown | ⚠️ needs TinyStories run |
+| BF16W vs FP32 Adam on TinyStories | **[PLACEHOLDER — future BF16W run]** — may show slower convergence; honest finding either way | ⏳ |
+| **443K FP32 does NOT fit ZCU102** | 443K × 12 B = **5.32 MB** > 4.5 MB ❌ | ✅ calculated |
+| **443K BF16W fits ZCU102** | 443K × 10 B = **4.23 MB** < 4.5 MB ✓ (270 KB headroom) | ✅ calculated |
+| Same chip runs Shakespeare (256 vocab) or TinyStories (1501 vocab) | Embed SRAM provisioned for 1501 tokens; Shakespeare uses 90 KB of 528 KB | ✅ design verified |
 
-### 3. Why Adam instead of SGD — the motivation
+### 3. Why Adam — and why on-chip
 
-At 8k samples, GPU Adam reaches loss 2.71; CPU SGD reaches 5.47.
-At 100k samples, Adam plateaus at **1.67**. SGD at 1M samples is at **2.59 and still falling**.
+Every existing inference ASIC offloads the weight update to a host GPU/CPU.
+Adam is the standard optimizer for transformer training. The paper's claim is that
+Adam can run **entirely on-chip** — no host involvement, no off-chip moment storage.
 
-This gap (~0.6–0.8 loss units at plateau) is the **quantified hardware cost of not having
-an adaptive optimizer on chip**. It is not a software concern — it is a silicon design decision:
+The silicon cost is concrete: the **canonical 443K config** (embed=88, ff=264, layers=4, vocab=1501) requires 443K × 12 B = **5.32 MB** in FP32 — does **not** fit ZCU102's 4.5 MB budget.
+**BF16W (weights=BF16, moments=FP32) drops this to 443K × 10 B = 4.23 MB — fits with 270 KB headroom.** This makes BF16W not optional but *required* for the FPGA target.
+The 443K config is also the "universal" chip: it can train on Shakespeare (vocab=256) or TinyStories (vocab=1501) without hardware changes — only the embedding SRAM region changes content.
 
-- **v1 chip (SGD only)**: simplest, no extra SRAM, ships first. Ceiling ~2.4.
-- **v2 chip (BF16 Adam SRAM unit)**: +400 KB on-chip SRAM for moment storage. Ceiling ~1.67.
-
-The paper's new contribution is measuring this gap empirically and expressing it as a
-concrete silicon trade-off: **400 KB of SRAM buys you 0.7 loss units on the 1M param benchmark**.
+```
+┌─────────────────────────────────────────────────────────────────┐
+│        NeuronFabric 334K — Shakespeare FPGA Config              │
+│        embed=88  heads=4  ff=264  layers=4  vocab=256           │
+├─────────────────────────────────────────────────────────────────┤
+│  INPUT                                                          │
+│  token [0..255] ──► Embedding SRAM                             │
+│                     vocab×embed = 256×88                        │
+│                     [  88 KB  ]                                 │
+├─────────────────────────────────────────────────────────────────┤
+│  TRANSFORMER CORE  (×4 identical layers)                        │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  LayerNorm (88)                                         │   │
+│  │  Attention: 4 heads × headDim=22                        │   │
+│  │    Wq Wk Wv: [88×22]   Wo: [22×88]   fan-in: 88        │   │
+│  │  + residual                                             │   │
+│  │  LayerNorm (88)                                         │   │
+│  │  FF: W1 [88→264]  W2 [264→88]   fan-in: 264 (max)      │   │
+│  │  + residual                                             │   │
+│  │                                                         │   │
+│  │  Adam state per weight: m (FP32) + v (FP32)            │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                          × 4                                    │
+├─────────────────────────────────────────────────────────────────┤
+│  OUTPUT                                                         │
+│  logits = layerOut · Embedding.T   (weight-tied, no extra params)│
+├─────────────────────────────────────────────────────────────────┤
+│  SRAM BUDGET (ZCU102 = 4.0 MB)                                 │
+│                                                                 │
+│  BF16W  ████████████████████████░░░░  3.34 MB / 4.0 MB  ✓     │
+│  FP32   ████████████████████████████  4.00 MB  ✗ no headroom   │
+│                                                                 │
+│  Breakdown (BF16W):                                             │
+│    Weights  (BF16): 334K × 2 B = 0.67 MB                      │
+│    Moments  (FP32): 334K × 8 B = 2.67 MB  (m + v)             │
+│    Total:                        3.34 MB  ← 660 KB headroom ✓  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ### 4. What we still need to prove
 
 | Open question | Experiment needed |
 |---|---|
-| Exact CPU SGD plateau | Current run to finish (~2–3M samples) |
-| BF16 Adam loss ceiling (not just step-50) | BF16 run to 80–100k samples |
-| AVX2 Adam speedup vs scalar (296ms/sample → ?) | Build + benchmark `OptimizedCpuAdamTransformerBus` |
-| Multi-chip MoE beats single-chip Adam ceiling | MoE training run (not yet implemented) |
-| BF16 loss is within ε of float32 Adam at ceiling | Compare BF16 plateau vs float32 plateau |
+| 380K FP32 Adam held-out floor on TinyStories | EXP-001 GPU run (in progress) |
+| CPU FP32 Adam tracks GPU Adam | EXP-001 CPU run (in progress) |
+| BF16W parity or penalty on TinyStories | Future BF16W run after FP32 baseline confirmed |
+| CPU Adam FP32 generalises to second domain | **[OPTIONAL]** Shakespeare char-level (vocab~50), **380K params**, 100K samples (~4.5h) — same FPGA budget, negligible vocab tax vs TinyStories vocab=1501; supports Section 3 vocab-budget table |
 
 ### 5. What we need to think about in future
 
-- **SRAM sizing for Adam on SKY130**: 400 KB BF16 moments — does it fit in one tile?
-  Current estimate: ~3.2 Mbit. SKY130 OpenMPW limit ~4–8 Mbit. Feasible, needs exact layout.
-- **Gradient accumulation across chips in MoE**: the gating chip owns the loss; gradients
-  must flow back through the inter-chip SPI link. Bandwidth and latency budget unknown.
-- **Integer quantization of moments**: can we go INT8 moments (200 KB) with acceptable drift?
-  BF16 is the first step; INT8 is the next if SRAM is the binding constraint.
-- **Lion optimizer**: uses only sign(m) — one bit per weight for momentum, no second moment.
-  Memory cost: ~100 KB for 1M param model. Convergence vs Adam on this benchmark: unknown.
-- **Continuous/online learning**: the ASIC can update weights from live input without retraining
-  cycle. Stability guarantees for streaming Adam on-chip are an open research question.
+- **Lion optimizer**: sign(m) only — half the moment SRAM, worth benchmarking
+- **INT8 moments**: further SRAM reduction if BF16W shows penalty
+- **Continuous/online learning**: stability guarantees for streaming Adam on-chip
 
 ---
 
@@ -131,7 +189,7 @@ concrete silicon trade-off: **400 KB of SRAM buys you 0.7 loss units on the 1M p
 ### 2. Architecture (~2 pages)
 - NeuronCore → AttentionCore → TransformerBus hierarchy
 - The `ApplyUpdate` hook: single override point = the silicon SRAM update unit
-- SGD default (v1 silicon) → Adam override (v2 silicon): same hardware path, different SRAM
+- SGD default → Adam override: same hardware path, different SRAM
 - Hardware mapping table (software abstraction → BRAM/DSP/bus)
 
 ### 3. The Vocabulary-Budget Constraint (~1.5 pages)
@@ -141,18 +199,40 @@ concrete silicon trade-off: **400 KB of SRAM buys you 0.7 loss units on the 1M p
 - Implication: shared-embedding MoE pays the vocabulary tax once for the entire pipeline
 
 ### 4. The Adaptive Optimizer Gap (~2 pages) ← NEW in v2
-- Benchmark: 1M param TinyStories, four variants compared
-- Table: CPU SGD, CPU Adam float32, CPU Adam BF16, GPU Adam (oracle)
-- The key number: ~0.7 loss units gap between SGD ceiling and Adam ceiling
-- Hardware translation: 400 KB BF16 SRAM = the price of closing that gap on silicon
-- BF16 vs float32 Adam: within X% — validates the tapeout SRAM specification
+- Benchmark: 380K param TinyStories, held-out 90/10 split, linear LR decay
+- Table: CPU Adam FP32 vs CPU Adam BF16W vs GPU Adam FP32 (oracle)
 
-### 5. Multi-Chip Scaling and Roadmap (~2 pages)
-- Shared-embedding MoE topology (from v1, keep compressed)
-- Inter-chip bandwidth equation: fixed at T×d×4 bytes regardless of depth
-- v1 silicon (SKY130, SGD): specification and open tasks
-- v2 silicon (SKY130, BF16 Adam): 400 KB moment SRAM, specification and open tasks
-- Future: INT8 moments, Lion optimizer, online learning stability
+| Variant | Val Loss @250K | Accuracy | ms/sample |
+|---|---|---|---|
+| GPU Adam FP32 | **[TBD — EXP-001 Run A]** | **[TBD]** | ~16 |
+| CPU Adam FP32 | **[TBD — EXP-001 CPU run]** | **[TBD]** | ~300 |
+| CPU Adam BF16W | **[TBD — future run]** | **[TBD]** | ~300 |
+
+- The key number: gap between SGD ceiling and BF16W Adam ceiling (in loss units)
+- Hardware translation: BF16W SRAM cost = **0.76 MB** for 380K params
+- BF16W parity criterion: within **0.05 val loss** of GPU FP32 Adam — if penalty observed, report honestly as "slower convergence, requires further tuning" and note FP32 is sufficient for FPGA stage
+- **FP32 Adam is the primary paper result**; BF16W is a secondary finding (positive or negative)
+
+**Charts needed:**
+- **Figure 1**: Loss curves (val loss vs samples) for all 4 variants on same axes — the main result
+- **Figure 2**: SRAM budget breakdown (weights vs moments vs activations) — the silicon argument
+- **Figure 3** (optional): Scaling table — params vs held-out floor at fixed sample budget
+
+### 5. Hardware Feasibility and Roadmap (~1.5 pages)
+- **No FPGA measurements in Paper 1** — this is a numerical/software paper
+- **443K params** canonical config (embed=88, ff=264, layers=4, vocab=1501) — fits ZCU102 in FP32 (3.34 MB); same chip runs Shakespeare or TinyStories — 2 sentences only, not the focus
+- Architecture maps naturally to silicon: weights in BRAM, `ApplyUpdate` hook = on-chip optimizer unit
+- **FPGA demo target (Paper 2)**: Shakespeare char-level, **334K params** (embed=88, ff=264, vocab=256), full training on ZCU102 — no host CPU in the update loop. Loss drops from ~3.2 to ~1.54 entirely on chip. This is the hardware proof. (334K Shakespeare = same transformer core as 443K universal config, smaller embedding table)
+- **Ultimate vision**: analogue Adam per neuron, chips connected via axon data links only (activations forward, nothing backward off-chip) — scaling by adding chips, not by widening a gradient bus
+- Scaling table by process node (calculated, not measured):
+
+| Node | SRAM density | Params (BF16W Adam) |
+|---|---|---|
+| 12nm | ~0.5 MB/mm² | ~33M |
+| 7nm | ~0.9 MB/mm² | ~66M |
+| 5nm | ~1.5 MB/mm² | ~100M |
+
+- Future work: INT8 moments, Lion optimizer, on-chip fine-tuning from streaming data
 
 ---
 
@@ -169,69 +249,18 @@ concrete silicon trade-off: **400 KB of SRAM buys you 0.7 loss units on the 1M p
 
 ---
 
-## The Core Validation Experiment (arXiv minimum bar)
-
-This is the single most important experiment in the paper.
-It answers the question a reviewer will immediately ask:
-*"Does your C# BF16 Adam actually converge to the same loss as a real optimizer?"*
-
-### Setup — three curves, same everything
-
-| Property | Must be identical across all three |
-|---|---|
-| Dataset | TinyStories |
-| Model size | ~1M params (embedDim=128, heads=4, ffDim=384, layers=4, vocab=1501, seqLen=128) |
-| Tokenizer | Same `TinyStoriesLoader` word-level tokenizer |
-| Seed | Same `Random(42)` initialisation |
-| Train/val split | Same loader, same shuffle |
-| Hyperparameters | lr=1e-3, β₁=0.9, β₂=0.999, ε=1e-8, batch=4 |
-
-### The three curves
-
-1. **GPU FP32 Adam** — TorchSharp `AdamTransformerBus`, RTX 4090 — the oracle
-2. **GPU BF16/FP16 Adam** — TorchSharp with `torch.set_default_dtype(torch.bfloat16)` — intermediate reference
-3. **C# BF16 Adam** — `CpuAdamBF16TransformerBus` — the hardware silicon reference
-
-### Success criteria
-
-| Criterion | Target |
-|---|---|
-| Final loss | C# BF16 within **1–3%** of GPU FP32 Adam at 100k samples |
-| Accuracy | Within ~2% of GPU |
-| Convergence | No divergence, no NaN, smooth curve |
-| Loss range | C# BF16 reaches **≤ 1.8** (1.6–1.8 is sufficient for arXiv) |
-
-### The money graph
-
-X-axis: samples seen (0 → 100k).
-Y-axis: eval loss.
-Three lines: GPU FP32, GPU BF16, C# BF16.
-
-If the C# BF16 line tracks within the GPU BF16 band — the paper is done.
-The claim is not "better than GPU". The claim is:
-
-> **BF16 local Adam is viable for tiny language-model training.**
-> **This enables local-weight FPGA/ASIC training fabric.**
-
-That is a clear, falsifiable, hardware-relevant engineering result.
-It is publishable on arXiv as an engineering proof without further claims.
-
-### What comes after (roadmap in the paper)
-
-Once viability is shown:
-- This enables v2 silicon: BF16 Adam SRAM unit on SKY130 tapeout
-- The 400 KB SRAM cost is justified by the loss gap vs SGD (Section 4)
-- Future: INT8 moments, Lion optimizer, streaming online learning
-
----
-
 ## Tomorrow's Agenda
 
-1. Check BF16 train terminal — get eval loss @8k, start run to 100k
-2. Build + benchmark `OptimizedCpuAdamTransformerBus` — ms/sample vs scalar 296ms
-3. Run GPU BF16 curve (`--adam-gpu-bf16` flag — needs implementation)
-4. Compare three curves → paper Section 4 graph
-5. Tag `v0.1-paper` release once three curves are plotted
+1. Review EXP-001 GPU results when run completes
+2. Start BF16W run once FP32 baseline confirmed
+3. Plot Figure 1 (loss curves) from EXP-001 data
+4. Begin drafting Section 4 with real numbers
+5. **Add .bat files to `Neuro.Attention.TrainApp`** for each tested model/target:
+   - `run-exp001-gpu-adam.bat` — GPU FP32 Adam, 380K params, TinyStories, 250K samples
+   - `run-exp001-cpu-adam-fp32.bat` — CPU FP32 Adam, 380K params, TinyStories, 350K samples
+   - `run-exp001-cpu-adam-bf16w.bat` — CPU BF16W Adam, 380K params, TinyStories, 350K samples
+   - `run-exp001-shakespeare.bat` — CPU FP32 Adam, **380K params**, Shakespeare char-level (vocab~50), 100K samples (optional — Section 3 vocab contrast, same FPGA budget)
+   - Each bat file should include the full command with all hyperparameters so results are reproducible
 
 ---
 
@@ -269,7 +298,7 @@ of how the code was written.
 
 | Number | Source |
 |---|---|
-| CPU SGD final plateau loss + sample count | Background terminal (finish today or stop it) |
-| CPU Adam BF16 eval loss @8k and @100k | Terminal `63f3832e` |
-| OptimizedCpuAdam ms/sample | Build `OptimizedCpuAdamTransformerBus`, run benchmark |
-| BF16 Adam plateau vs float32 Adam plateau | Both runs to ~100k samples |
+| 380K GPU Adam FP32 held-out floor | EXP-001 GPU run (~1h, in progress) |
+| CPU Adam FP32 curve tracks GPU | EXP-001 CPU run (~15h, in progress) |
+| BF16W TinyStories curve | Future run after FP32 baseline confirmed |
+| Shakespeare 380K CPU Adam FP32 (optional) | Short validation run (~4.5h) — same FPGA budget, char-level vocab~50 vs TinyStories vocab=1501 for Section 3 |
