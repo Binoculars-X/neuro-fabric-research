@@ -61,7 +61,7 @@
   - CPU SGD: 51 ms/sample, loss 5.47 @8k
   - GPU SGD: 11 ms/sample, loss 5.43 @8k (4.4× faster, identical convergence)
   - GPU Adam: 18 ms/sample, loss **2.71 @8k** — Adam critical for large-vocab models
-- GPU Adam plateau: **1.67 @ 80K samples** → TinyStories single-chip upper bound
+- GPU Adam plateau: **1.67 @ 80K samples** ⚠️ *[INVALID — in-sample, no train/val split; see Day 9]* → TinyStories single-chip upper bound
 - CPU Adam float32: 296 ms/sample, loss 2.95 @8k; BF16 moments variant: 337 ms/sample, loss 2.94
 - **BF16 moments finding:** naive truncation degrades convergence — FP32 moments required
 - CPU SGD to 2.18M samples: loss 2.60 → **optimizer gap: ~0.34 loss, 27× more samples**
@@ -70,7 +70,7 @@
 
 ## 25/05/26 — Day 6: Paper v2 Experiments + CPU SGD Plateau
 
-- CPU SGD plateau confirmed: **1.97 @ 2.24M samples** (slowly descending ~0.03/50K)
+- CPU SGD plateau confirmed: **1.97 @ 2.24M samples** ⚠️ *[INVALID — in-sample, no train/val split; see Day 9]* (slowly descending ~0.03/50K)
 - BF16 moments (m=BF16, v=BF16) run to 43K: loss 2.75, gap vs GPU Adam widening → **design rejected**
 - Revised design: **w=BF16, m=FP32, v=FP32** — 50% weight SRAM saving, zero convergence penalty
 - Concurrent CPU SGD + CPU BF16 Adam on R9 9900x: no interference (both memory-bound)
@@ -85,10 +85,12 @@
 
 | Params | embedDim | Floor @80K | BF16W SRAM | FP32 training SRAM |
 |---|---|---|---|---|
-| ~380K | 80 | ~1.85 | 0.76 MB | **5.5 MB ← ZCU102 fits** |
-| ~590K | 104 | ~1.77 | 1.18 MB | 8.5 MB |
-| ~800K | 96 | **~1.64** | 1.60 MB | 11.5 MB |
-| ~1M | 128 | ~1.67 | 2.00 MB | 14.4 MB |
+| ~380K | 80 | ~1.85 ⚠️ | 0.76 MB | **5.5 MB ← ZCU102 fits** |
+| ~590K | 104 | ~1.77 ⚠️ | 1.18 MB | 8.5 MB |
+| ~800K | 96 | **~1.64** ⚠️ | 1.60 MB | 11.5 MB |
+| ~1M | 128 | ~1.67 ⚠️ | 2.00 MB | 14.4 MB |
+
+*⚠️ Floor estimates are in-sample (no train/val split); see Day 9 for retraction. Relative ordering valid, absolute values unreliable.*
 
 - Capacity knee: **600K–800K**; above 800K no gain; 380K fits ZCU102 BRAM for full on-chip training
 - CPU FP32 Adam 600K and 400K runs started (100K samples each, ~300 ms/sample)
@@ -154,3 +156,63 @@
 - Research repo to hold: journal, experiment reports, paper `.tex`, result CSVs/plots
 - Implementation repo to hold: C# src only, no research artefacts
 - Goal: clean separation so paper codebase is citable and reproducible without training binaries
+
+---
+
+## 30/05/26 — Day 12: Param Scaling + BUG-001 Discovery
+
+- EXP-002: 334K param run (embedDim=88, ff=264, layers=4) Shakespeare char-level b=1
+- **BUG-001 found:** `TransformerBus.TrainBatch` calls `TrainStep` B times at `lr/B` — wrong for Adam
+  - For Adam, this corrupts moment estimates (B sequential noisy updates vs 1 true batch gradient)
+  - Evidence: b=1 reaches eval 1.83 at 15K samples; b=16 still at 2.13 at 15K samples (4× slower/sample)
+  - All EXP-001 b=16 results valid (still converge), just suboptimal — b=1 is strictly better per sample
+  - Fix: accumulate gradients over B samples, call `optimizer.step()` once at full lr
+  - See → [bugs/bug-001-trainbatch-sequential-adam-steps.md](bugs/bug-001-trainbatch-sequential-adam-steps.md)
+- **BUG-002 found & fixed:** linear decay resume stretches schedule denominator each resume
+  - `absoluteTotalSteps = globalStepOffset + newIterations` recalculated fresh — ignores saved `TotalSteps`
+  - LR jumped 0.000030 → 0.001141 after resuming 150K checkpoint with +100K samples
+  - Fix: use `max(bus.TotalSteps, globalStepOffset + totalSteps)` on resume
+  - See → [bugs/bug-002-linear-decay-resume-stretches-schedule.md](bugs/bug-002-linear-decay-resume-stretches-schedule.md)
+- Running 334K GPU FP32 (b=1, 80K samples) vs 334K CPU BF16W (b=1, 80K samples) in parallel
+- **EXP-002 preliminary results (80K samples, b=1):**
+  - GPU Adam FP32: eval **1.5394** — clean Shakespeare structure, correct character names ✅
+  - CPU Adam BF16W: eval **1.5375** — clean demo output, matches GPU within noise ✅
+  - CPU Adam FP32: eval **1.5407** — metrics look fine, but demo output had `:s:s:s` prefix garbage ❌
+  - **Conclusion:** 80K samples sufficient for GPU and BF16W; CPU FP32 checkpoint corrupt or undertrained
+  - CPU FP32 re-run launched as **exp002-2** with 100K samples (terminal `a2e18fbc`)
+  - GPU TinyStories 1M param run also launched (terminal `fae3bd50`)
+
+---
+
+## 31/05/26 — Day 13: R1.0 Release + Researcher Quick-Start Bats
+
+- **R1.0 released** — known bugs BUG-001 and BUG-002 acknowledged but excluded from scope
+  - Constraints applied: `b=1` only (sidesteps BUG-001 sequential Adam steps); no `--resume` (sidesteps BUG-002 LR schedule stretch)
+  - Both bugs documented; fixes pending for R1.1
+- **Researcher quick-start bat files** created in `neuro-fabric/run/`:
+  - `train-gpu-adam-shakespeare.bat` — GPU Adam FP32, 334K params, 150K samples
+  - `train-cpu-adam-bf16w-shakespeare.bat` — CPU BF16W, 334K params, 150K samples, `NoGpu=true` (no CUDA required)
+  - `demo-gpu-adam-shakespeare.bat` — interactive demo from GPU checkpoint
+  - `demo-cpu-adam-bf16w-shakespeare.bat` — interactive demo from BF16W checkpoint (no CUDA)
+  - Checkpoints saved to `run/results/`; guard exits with error if checkpoint already exists
+- **`NoGpu=true` build flag** added to `TrainApp.csproj` + `#if !NO_GPU` guards in `Program.cs`
+  - CPU-only build excludes `Neuro.Gpu` / TorchSharp entirely — compiles on any .NET 10 machine
+  - Demo app already had no GPU dependency
+- **Planned R1.0 validation runs** (334K params, 150K samples, b=1, linear decay):
+  - GPU Adam FP32 Shakespeare (`train-gpu-adam-shakespeare.bat`)
+  - CPU Adam BF16W Shakespeare (`train-cpu-adam-bf16w-shakespeare.bat`)
+
+---
+
+## 01/06/26 — Day 14: TinyStories Convergence Analysis + Paper Figures
+
+- **Shakespeare 334K canonical results** (85K samples, run/results/):
+  - GPU FP32: eval **1.5281**, 56.2%, 16.4 ms/sample ← oracle
+  - CPU FP32: eval **1.5425**, 55.3%, 201.5 ms/sample (+0.014 gap, 12.3× slower)
+  - CPU BF16W (post bug-004/005): eval **1.5547**, best **1.5545 @ 82K**, 54.72%, 137.9 ms/sample ✅
+- **BUG-004:** `_step` private in base shadowed by derived BF16W classes — bias correction resets. Fix: `private→protected` in 3 bases, remove shadow in 6 derived classes. 107/107 tests pass.
+- **BUG-005:** BF16W FP32 master overwritten from BF16 decode — sub-BF16 updates lost. Fix: `w[i,j] = wf`. Confirmed by re-run.
+- **BUG-003 (CPU FP32 `aW` artifact):** Investigated — model memorized bytes 97+87 as zero-context prior. GPU FP32 and BF16W unaffected. Quantitative comparison: statistically identical char distribution. CPU FP32 removed from paper.
+- **Paper:** CPU FP32 row removed; TinyStories 442K section removed; `\repourl` macro added; run/ scripts listed in Reproducibility; double References fixed; DRAFT watermark added; cs.AR submission in progress (endorsement requested from Prof. Cheung).
+- **BF16W demo (85K):** coherent Shakespeare dialogue, no garbage artifact. Gap vs GPU: +0.027 eval loss (1.7%).
+- **exp002b created:** `exp002-cpu-adam-bf16w-shakespeare-334k-85k.md` + .neuro + .log archived.
