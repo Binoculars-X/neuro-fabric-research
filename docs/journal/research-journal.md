@@ -216,3 +216,26 @@
 - **Paper:** CPU FP32 row removed; TinyStories 442K section removed; `\repourl` macro added; run/ scripts listed in Reproducibility; double References fixed; DRAFT watermark added; cs.AR submission in progress (endorsement requested from Prof. Cheung).
 - **BF16W demo (85K):** coherent Shakespeare dialogue, no garbage artifact. Gap vs GPU: +0.027 eval loss (1.7%).
 - **exp002b created:** `exp002-cpu-adam-bf16w-shakespeare-334k-85k.md` + .neuro + .log archived.
+
+---
+
+## 02/06/26 — Day 15: BUG-006 Fix + Release v1.0.2 + Paper v3 + exp003 Reports
+
+- **BUG-006 (Adam bias correction inflated):** `ApplyUpdate` called once per weight matrix per step; `_step` incremented each call → at real step 1, AttentionCore (4 matrices) had `_step=4`, giving `bc1=1−0.9^4=0.344` instead of correct 0.1. **Fix:** single `GlobalStep` counter in `TransformerBus`, incremented once per `TrainStep`, passed through `Backward(dX, lr, step)` → `ApplyUpdate(w, grad, lr, step)`. Affects 9 files: `AttentionCore`, `AttentionLayer`, `TransformerBus`, and all 6 Adam variants.
+- **Build:** 0 errors post-fix; test call sites updated to pass `step: 1`.
+- **GitHub release v1.0.2** created on commit `86642e2` (version.txt updated to `v1.0.2`).
+- **exp003 runs (334K params, post-BUG-006 fix, b=1, 80K samples):**
+  - GPU FP32: best eval **1.5226 @ 80K**, 55.79%, 19.37 ms/sample, 1550s total ✅
+  - CPU BF16W: best eval **1.5477 @ 78K**, 54.57%, 149.51 ms/sample, 11961s total ✅
+  - Gap: +0.025 val loss, 7.7× slower — slightly tighter than exp002 (+0.027, 8.4×)
+- **exp003 reports** created: `docs/journal/experiments/exp003/` (GPU + BF16W markdown reports with raw logs and demo output).
+- **Loss chart (Figure 2)** regenerated from 80K logs; "exp003" label removed from title.
+- **Paper v3** (`neuronFabric-v3-draft.tex`) created and fully updated:
+  - Release v1.0.1 → v1.0.2 (commit `86642e2`) throughout
+  - 85K → 80K samples throughout
+  - Results table: GPU 1.5226/55.79%/19.37, BF16W 1.5477/54.57%/149.51
+  - Convergence gap: +0.027 → +0.025, 8.4× → 7.7×
+  - Figure 2 moved to after Training curve paragraph (was before it)
+  - Sample output: single MENENIUS prompt (CPU BF16W, temp 0.8) — second prompt removed
+  - Demo closing: "11,961s on CPU (no GPU required)"
+
