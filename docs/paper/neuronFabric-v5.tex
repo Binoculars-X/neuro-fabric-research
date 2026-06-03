@@ -10,10 +10,7 @@
 \usepackage{microtype}
 \usepackage{caption}
 \usepackage{float}
-\usepackage{draftwatermark}
-\SetWatermarkText{DRAFT}
-\SetWatermarkScale{4}
-\SetWatermarkColor[gray]{0.88}
+
 \hypersetup{
   colorlinks=true,
   linkcolor=blue,
@@ -23,7 +20,13 @@
 
 % ── single source of truth for the repository URL ────────────────────────────
 \newcommand{\repourl}{https://github.com/Binoculars-X/neuro-fabric}
+% ── Val-loss results (single source of truth) ───────────────────────────────
+\newcommand{\bfsixteenloss}{0.025}
+\newcommand{\gpuvaloss}{1.5224}
+\newcommand{\cpubfvaloss}{1.5477}
 \newcommand{\repourltext}{github.com/Binoculars-X/neuro-fabric}
+\newcommand{\repoversion}{v1.1.0}
+\newcommand{\repocommit}{e9ab47a}
 
 \lstset{
   basicstyle=\ttfamily\small,
@@ -53,10 +56,12 @@ for On-Chip Transformer Training with Local Adam}\\[0.5em]
 \begin{abstract}
 % ─────────────────────────────────────────────────────────────────────────────
 
-Every neural chip we are aware of either does inference only (Groq LPU, Apple ANE,
-IBM NorthPole) or ships gradients off-chip to a host GPU or CPU for the weight update
-(Cerebras, Tenstorrent). The weight update never happens on the chip that computed
-the activations.
+To our knowledge, publicly documented accelerator architectures generally separate
+training compute from optimizer state updates or rely on external memory/host
+orchestration. Inference-only chips (Groq LPU, Apple ANE, IBM NorthPole) do not
+support on-chip gradient computation; training accelerators (Cerebras, Tenstorrent)
+perform the weight update off-chip. The weight update does not happen on the chip
+that computed the activations.
 
 This paper describes an attempt to fix that. We built a complete C\# software prototype
 of a transformer that runs forward pass, backpropagation, and Adam weight update
@@ -65,8 +70,8 @@ the math works and the numbers are right, before committing to silicon.
 
 The model we trained is a 334K parameter autoregressive transformer
 ($d{=}88$, $H{=}4$ heads, $f{=}264$, $L{=}4$ layers, vocab$=256$) trained on the
-Shakespeare corpus. The BF16W variant reaches eval loss 1.5477 at 80K samples
-(GPU FP32 oracle: 1.5226), with coherent character-level text generation confirmed.
+Shakespeare corpus. The BF16W variant reaches eval loss \cpubfvaloss{} at 80K samples
+(GPU FP32 oracle: \gpuvaloss{}), with coherent character-level text generation confirmed.
 
 We also introduce \textbf{BF16W}: storing weights in BF16 while keeping Adam moments
 in FP32. This is not a training approximation --- it is a hardware necessity.
@@ -78,7 +83,7 @@ We describe the vocabulary-budget constraint we discovered during earlier experi
 quantify the BF16W SRAM saving, and lay out the FPGA training target as the next step.
 No FPGA measurements are included in this paper; FPGA implementation and measurement are left for future work.
 
-\textbf{Code:} \href{\repourl}{\repourltext} (release v1.0.3, commit \texttt{97c09f3}).
+\textbf{Code:} \href{\repourl}{\repourltext} (release \repoversion, commit \texttt{\repocommit}).
 
 \textbf{Publication purpose:} This paper serves as a public architectural disclosure
 and software reference implementation for future FPGA/ASIC implementations of the
@@ -90,25 +95,22 @@ NeuronFabric system, establishing prior art for the local Adam update architectu
 \section{Introduction}
 % ─────────────────────────────────────────────────────────────────────────────
 
-A human brain learns continuously at roughly 20\,W.
 Training large language models at the scale of GPT-4 has been estimated at tens of megawatts
-sustained over months~\cite{patterson2022carbon} --- a factor of over a million in energy
-per unit of capability gained relative to biological learning.
-That gap is not mainly about transistor count or clock speed.
-It is about \emph{where the weight update happens}.
+sustained over months~\cite{patterson2022carbon}.
+A central architectural reason for this is \emph{where the weight update happens}.
 
-The brain updates synaptic weights locally, in place, with no external optimizer and
-no weight traffic across a bus. Every neural accelerator we are aware of does the
-opposite: it separates the compute from the update, ships gradients off-chip, and
-runs an optimizer on a host CPU or GPU. The chip that did the work does not do the learning.
+Existing neural accelerators separate the compute from the update: gradients are shipped
+off-chip and the optimizer runs on a host CPU or GPU.
+The chip that did the work does not do the learning.
 
 The gap this creates is concrete:
 
 \begin{itemize}
   \item \textbf{Weight traffic.} GPU inference loads all weights from HBM on every
     forward pass. For a 70B model that is $\sim$140\,GB of memory traffic per sample.
-  \item \textbf{Training power.} No existing ASIC supports on-chip weight updates.
-    Training always requires external hardware.
+  \item \textbf{Training architecture.} To our knowledge, publicly documented training
+    accelerators perform the weight update off-chip or on a host processor.
+    The chip that computed the gradients does not apply them.
   \item \textbf{No continuous learning.} An inference chip cannot update from new data
     without sending everything to an external GPU cluster and reloading --- a cycle
     that takes minutes to hours even for fine-tuning.
@@ -117,8 +119,7 @@ The gap this creates is concrete:
 NeuronFabric is an attempt to close that gap. The long-term goal is a silicon chip
 where every neuron holds its own weights and runs Adam locally --- weights update in
 place, no gradient traffic off-chip, scaling achieved by connecting chips via
-activation links only. This paper establishes the software proof that
-this is numerically viable. FPGA implementation of the same training loop is the immediate next step.
+activation links only. This paper presents a software reference implementation demonstrating convergence under the tested configuration. FPGA implementation of the same training loop is the immediate next step.
 
 \subsection{Contributions}
 
@@ -130,7 +131,7 @@ this is numerically viable. FPGA implementation of the same training loop is the
   \item \textbf{BF16W} --- a mixed-precision scheme where weights are stored as BF16
     (2 bytes) while Adam moments $m$ and $v$ remain FP32 (4 bytes each). We show this
     reduces SRAM from 12 bytes/parameter to 10 bytes/parameter with a negligible
-    convergence penalty ($+0.025$ val loss) on Shakespeare.
+    convergence penalty ($+\bfsixteenloss$ val loss) on Shakespeare.
 
   \item The \textbf{vocabulary-budget constraint}: at small parameter budgets, the
     embedding table dominates the model and the transformer layers have almost nothing
@@ -156,7 +157,8 @@ on a host CPU or external optimizer.
 \textbf{Neuromorphic chips.}
 Intel Loihi 2~\cite{loihi2} and SpiNNaker~\cite{spinnaker} support local weight updates
 via spike-timing-dependent plasticity (STDP) --- a Hebbian rule that does not implement
-gradient descent. STDP cannot reproduce transformer training results.
+gradient descent. STDP-based learning systems have not demonstrated transformer-scale
+gradient training comparable to backpropagation-based LLM training.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Architecture}
@@ -265,7 +267,7 @@ Embedding (weight-tied) & & 22,528 \\
 
 The design intent is that every software abstraction maps directly to a hardware block:
 
-\begin{table}[ht]
+\begin{table}[H]
 \centering
 \begin{tabular}{ll}
 \toprule
@@ -287,6 +289,18 @@ Softmax \texttt{exp()} & 256-entry LUT in BRAM\textsuperscript{$\dagger$} \\
 The control bus uses six states: \texttt{Idle / Encode / Forward / Backward /
 WeightRead / WeightWrite} --- a 3-bit signal that drives all compute blocks.
 This is not an abstraction convenience; it is the intended silicon interface.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig/arch_334k.pdf}
+\caption{NeuronFabric 334K Shakespeare FPGA configuration (embed=88, heads=4, ff=264,
+layers=4, vocab=256). \textbf{Left}: chip architecture — token embedding SRAM (88\,KB),
+four Pre-LN transformer layers each with local Adam state, weight-tied output projection.
+\textbf{Right}: SRAM budget on ZCU102 (4.0\,MB BRAM). FP32 Adam requires 4.00\,MB
+(no headroom for activations); BF16W Adam requires 3.34\,MB, leaving 660\,KB free.
+Weights: FP32 = 1.34\,MB, BF16W = 0.67\,MB. Moments ($m$+$v$, FP32 in both) = 2.67\,MB.}
+\label{fig:arch-334k}
+\end{figure}
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{BF16W: Why Weight Compression Is Not Optional for FPGA}
@@ -314,7 +328,7 @@ recomputed layer-by-layer) pushes the FP32 total over the limit.
 This gives 660\,KB of headroom for activation buffers, control state, and the
 embedding SRAM. The model fits comfortably.
 
-\begin{table}[ht]
+\begin{table}[H]
 \centering
 \begin{tabular}{lrrr}
 \toprule
@@ -331,18 +345,6 @@ headroom for activations. BF16W Adam leaves 660\,KB free --- sufficient for acti
 buffers and control state.}
 \end{table}
 
-\begin{figure}[ht]
-\centering
-\includegraphics[width=\linewidth]{fig/arch_334k.pdf}
-\caption{NeuronFabric 334K Shakespeare FPGA configuration (embed=88, heads=4, ff=264,
-layers=4, vocab=256). \textbf{Left}: chip architecture — token embedding SRAM (88\,KB),
-four Pre-LN transformer layers each with local Adam state, weight-tied output projection.
-\textbf{Right}: SRAM budget on ZCU102 (4.0\,MB BRAM). FP32 Adam requires 4.00\,MB
-(no headroom for activations); BF16W Adam requires 3.34\,MB, leaving 660\,KB free.
-Weights: FP32 = 1.34\,MB, BF16W = 0.67\,MB. Moments ($m$+$v$, FP32 in both) = 2.67\,MB.}
-\label{fig:arch-334k}
-\end{figure}
-
 \textbf{BF16W implementation.} Weights are stored as \texttt{ushort} arrays.
 Each training step: cast BF16 $\to$ FP32, compute forward + backward in FP32,
 apply Adam update in FP32, round FP32 $\to$ BF16, write back.
@@ -351,7 +353,7 @@ for Adam stability. The weight values themselves tolerate BF16 range ($\sim$3 de
 digits) because the Adam step size is small relative to weight magnitude.
 
 \textbf{Convergence.} On the 80K-sample Shakespeare runs, CPU BF16W
-reaches eval loss 1.5477 versus GPU FP32 1.5226 --- a gap of $+0.025$.
+reaches eval loss \cpubfvaloss{} versus GPU FP32 \gpuvaloss{} --- a gap of $+\bfsixteenloss$.
 Both variants converge qualitatively identically; the residual gap is consistent
 with the difference in compute precision and random seed (Section~\ref{sec:experiments}).
 
@@ -420,7 +422,7 @@ chip (shared-embedding MoE, described briefly in Section~\ref{sec:future}).
 
 \label{sec:experiments}
 
-All experiments were conducted using NeuronFabric release \textbf{v1.0.3}.
+All experiments were conducted using NeuronFabric release \textbf{\repoversion}.
 All runs were performed on Windows 11 with an AMD Ryzen 9 9900X CPU and NVIDIA GeForce RTX 4090 GPU (CUDA 13.2, .NET 10.0).
 
 \subsection{Correctness Validation}
@@ -442,7 +444,10 @@ regardless of how reasonable the output looks.
 
 \textbf{Configuration.} Architecture as in Table~\ref{tab:arch}.
 Optimizer: Adam with linear LR schedule, warmup 200 steps, peak LR $= 0.003$.
-Training: 80,000 samples (online, batch$=1$), GPU accelerated.
+Training: 80,000 samples (online, batch$=1$).
+Two variants were run: \textbf{GPU Adam FP32} (NVIDIA RTX 4090, CUDA 13.2) as the oracle
+baseline, and \textbf{CPU Adam BF16W} (AMD Ryzen 9 9900X, no GPU required) to validate
+the mixed-precision scheme.
 Checkpoint format: \texttt{.neuro} (JSON header + flat binary weights), version-stamped.
 
 \textbf{Train/validation split.} The Shakespeare corpus is split 90/10:
@@ -451,23 +456,26 @@ The model never sees the validation set during training.
 All loss and accuracy numbers reported here are measured on the held-out validation set,
 not the training set --- the goal is generalisation, not memorisation.
 
-\begin{table}[ht]
+\begin{table}[H]
 \centering
-\begin{tabular}{lrrrr}
+\begin{tabular}{lrrrrrr}
 \toprule
-Variant & Samples & Val loss & Accuracy & ms/sample \\
+Variant & Samples & Val loss & BPC & Accuracy & ms/sample \\
 \midrule
-GPU Adam FP32  & 80,000 & \textbf{1.5226} & 55.79\% & 19.37 \\
-CPU Adam BF16W & 80,000 & 1.5477 & 54.57\% & 149.51 \\
+GPU Adam FP32  & 80,000 & \textbf{\gpuvaloss} & 2.20 & 55.66\% & 17.13 \\
+    CPU Adam BF16W & 80,000 & \cpubfvaloss & 2.23 & 54.57\% & 149.51 \\
+\midrule
+Karpathy char-rnn~\cite{karpathy2015charrnn} & --- & --- & $\sim$1.3 & --- & --- \\
 \bottomrule
 \end{tabular}
-\caption{Shakespeare 334K training results (NeuronFabric v1.0.3, run/results/).
+\caption{Shakespeare 334K training results (NeuronFabric \repoversion, run/results/).
 GPU Adam FP32 is the oracle baseline.
-CPU BF16W gap: $+0.025$ val loss, $7.7\times$ slower --- consistent with the precision difference between BF16 and FP32 weight storage.}
+CPU BF16W gap: $+\bfsixteenloss$ val loss, $7.7\times$ slower --- consistent with the precision difference between BF16 and FP32 weight storage.
+BPC = bits per character = val loss $/ \ln 2$. Karpathy char-rnn reference is a $\sim$3M parameter LSTM; the gap is expected at our 9$\times$ smaller budget and confirms convergence rather than SOTA quality.}
 \label{tab:shakespeare-results}
 \end{table}
 
-\textbf{Training curve.} Best eval loss 1.5226 (GPU FP32, at 80K) and 1.5477 (CPU BF16W, at 78K)
+\textbf{Training curve.} Best eval loss \gpuvaloss{} (GPU FP32, at 80K) and \cpubfvaloss{} (CPU BF16W, at 78K)
 were reached within the 80K sample budget. Neither variant overfit --- eval and train loss
 tracked closely throughout. Figure~\ref{fig:shakespeare-loss} shows both curves.
 
@@ -485,16 +493,19 @@ Who's much subject you me shall be short
 About and a wife all quarried may may.
 \end{lstlisting}
 
-The model generates named Shakespearean characters, metered dialogue structure, and
-contextually coherent responses. This is coherent literary text from a 334K parameter
-BF16W model trained for $\sim$3.3 hours on CPU (no GPU required).
+The model produces recognizable Shakespeare-style dialogue structure and named-character
+patterns. This is not state-of-the-art quality: our 334K parameter model reaches
+\textbf{2.21 BPC} (bits per character, = eval loss / $\ln 2$ = $\cpubfvaloss / 0.6931$),
+compared to Karpathy's char-rnn~\cite{karpathy2015charrnn} at $\sim$1.3 BPC with
+$\sim$3M parameters. The gap is expected given our 9$\times$ smaller model and is
+not our claim --- the claim is that the implemented local Adam training configuration converges on the Shakespeare benchmark.
 
-\begin{figure}[ht]
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.85\linewidth]{fig/fig2_loss_curves.pdf}
 \caption{Validation loss vs training samples for Shakespeare 334K model.
-GPU Adam FP32 reaches eval loss 1.5226 at 80K samples (oracle baseline).
-CPU Adam BF16W reaches 1.5477.}
+GPU Adam FP32 reaches eval loss \gpuvaloss{} at 80K samples (oracle baseline).
+CPU Adam BF16W reaches \cpubfvaloss.}
 \label{fig:shakespeare-loss}
 \end{figure}
 
@@ -527,9 +538,14 @@ The target result for the FPGA implementation: loss drops from $\sim$3.2 (random
 entirely on the FPGA, matching the software result in Table~\ref{tab:shakespeare-results},
 with no host CPU involvement in the Adam update step.
 
-\textbf{Projected training time on ZCU102 (unverified).} At 150--200\,MHz (a realistic target for a transformer core with control logic and interconnects) with $\sim$600 BF16 FMA units, fully pipelined: $\sim$15--30\,ms/sample. Power: $\sim$15\,W.
-These are projections from FPGA characterisation data~\cite{xilinx_power},
-not measurements. Measured results will be reported in future work.
+\textbf{DSP throughput analysis (under stated assumptions).}
+At a target clock domain of 150--200\,MHz and assuming non-blocking local SRAM access,
+the ZCU102 DSP48E2 blocks can sustain a high BF16 FMA utilization rate for the
+dot-product chains in each attention head and feedforward layer.
+Local SRAM eliminates the memory-bandwidth bottleneck that would otherwise serialize
+DSP utilization in off-chip-memory designs.
+This is an architectural throughput analysis under stated assumptions, not a measured result.
+Actual timing and power will be reported after FPGA implementation.
 
 \subsection{Scaling Beyond One Chip}
 
@@ -554,8 +570,9 @@ As on-chip SRAM density improves with process scaling, the same architecture acc
 larger models without architectural change. Silicon-level projections are left for future work
 pending FPGA validation.
 
-The ultimate vision: each chip is an autonomous learning unit. Chips connected via activation
-links only. No gradient bus. No host CPU. Scaling limited only by the number of chips connected.
+A possible long-term architecture is a network of chips exchanging activations rather
+than optimizer state: each chip is an autonomous learning unit, connected via activation
+links only, with no gradient bus and no host CPU in the update loop.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Discussion}
@@ -570,11 +587,13 @@ architectural analysis, not on a running FPGA system. FPGA validation is future 
 What this paper does establish:
 
 \begin{itemize}
-  \item The backpropagation is mathematically correct (gradient checks, backed by more than a hundred unit and regression tests).
-  \item BF16W Adam converges with a negligible gap ($+0.025$ val loss) versus FP32 Adam on Shakespeare at 80K samples.
+  \item The backpropagation implementation is numerically validated via gradient checks
+    (finite differences vs.\ analytical gradient across all components), backed by more
+    than a hundred unit and regression tests.
+  \item BF16W Adam converges with a negligible gap ($+\bfsixteenloss$ val loss) versus FP32 Adam on Shakespeare at 80K samples.
   \item The 334K BF16W model fits in ZCU102 BRAM with 660\,KB headroom --- this is
     arithmetic, not a projection.
-  \item The vocabulary-budget constraint is real and measurable across three domains.
+  \item The vocabulary-budget constraint (Section~\ref{sec:vocab}) is observed consistently across three exploratory domains and is supported by the arithmetic of equation~\ref{eq:vocab-budget}.
 \end{itemize}
 
 \subsection{Reproducibility}
@@ -588,14 +607,25 @@ hyperparameters and per-sample loss recorded.
 
 To reproduce the Shakespeare 334K results from scratch:
 \begin{enumerate}
-  \item \texttt{run/1.build.bat} --- builds the project (GPU or CPU-only)
-  \item \texttt{run/2.train-gpu-adam-shakespeare.bat} --- trains GPU Adam FP32 oracle
-  \item \texttt{run/2.train-cpu-adam-bf16w-shakespeare.bat} --- trains CPU BF16W (no CUDA required)
-  \item \texttt{run/3.demo-gpu-adam-shakespeare.bat} --- interactive demo from GPU checkpoint
-  \item \texttt{run/3.demo-cpu-adam-bf16w-shakespeare.bat} --- interactive demo, CPU BF16W
+  \item \texttt{run/build.bat} --- builds all targets (auto-detects CUDA)
+  \item \texttt{cd run/gpu-fp32-shakespeare-334k-b1-80k} then \texttt{1.train.bat} --- GPU Adam FP32 oracle
+  \item \texttt{cd run/cpu-bf16w-shakespeare-334k-b1-80k} then \texttt{1.train.bat} --- CPU BF16W (no CUDA required)
+  \item \texttt{2.demochat.bat} --- interactive generation from checkpoint
+  \item \texttt{3.plot.bat} --- loss curve (PNG + PDF)
 \end{enumerate}
 
-Checkpoints and logs are saved to \texttt{run/results/}.
+Each experiment folder is self-contained: \texttt{\_{}config.bat} holds all
+hyperparameters; the numbered scripts read from it. Checkpoint and log are
+saved inside the experiment folder (\texttt{checkpoint.neuro},
+\texttt{checkpoint.neuro.log}).
+
+The vocabulary-budget experiments in Table~\ref{tab:vocab-budget} (Section~\ref{sec:vocab})
+are illustrative results from earlier exploratory runs and are not fully reproduced by the
+published scripts. The datasets used (GPT-4 synthetic appointments, MultiWOZ 2.2,
+TinyStories) and the 100K-parameter configuration are described in the paper
+but the corresponding training scripts are not included in the \repoversion{} release.
+The Shakespeare 334K results in Table~\ref{tab:shakespeare-results} are fully reproducible
+from the published codebase.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section*{Acknowledgements}
@@ -610,7 +640,7 @@ created at that time to provide a citable, timestamped snapshot of the software 
 We built a complete software reference implementation of a transformer that trains
 entirely on a single machine, with local Adam, in pure C\#, with no external ML
 framework. We trained a 334K BF16W model on Shakespeare and got coherent text at
-eval loss 1.5477 --- with 660\,KB of on-chip SRAM headroom to spare on a mid-range FPGA.
+eval loss \cpubfvaloss{} --- with 660\,KB of on-chip SRAM headroom to spare on a mid-range FPGA.
 
 The next step is to run the same training loop on the FPGA and get the same loss curve.
 If that works, the claim that on-chip transformer training is viable --- without a host
@@ -649,6 +679,10 @@ M.~Davies et al., ``Loihi 2: A Many-Core Processor for Advanced Neural Inference
 
 \bibitem{spinnaker}
 S.~Furber et al., ``The SpiNNaker Project,'' \emph{Proceedings of the IEEE}, 2014.
+
+\bibitem{karpathy2015charrnn}
+A.~Karpathy, ``The Unreasonable Effectiveness of Recurrent Neural Networks,'' blog post,
+\url{http://karpathy.github.io/2015/05/21/rnn-effectiveness/}, 2015.
 
 \bibitem{xilinx_power}
 AMD/Xilinx, ``Zynq UltraScale+ MPSoC Data Sheet,'' DS925, 2023.

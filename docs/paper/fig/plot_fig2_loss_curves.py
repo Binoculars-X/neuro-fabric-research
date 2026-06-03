@@ -36,7 +36,7 @@ ax.plot([x/1000 for x in s2], vl2, color='#ff7f0e', linewidth=1.5, linestyle='--
 
 ax.set_xlabel('Training samples (thousands)', fontsize=11)
 ax.set_ylabel('Validation loss', fontsize=11)
-ax.set_title('Shakespeare 334K — Validation Loss (NeuronFabric v1.0.2)', fontsize=11)
+ax.set_title('Shakespeare 334K — Validation Loss', fontsize=11)
 ax.legend(fontsize=10)
 ax.grid(True, alpha=0.3)
 ax.set_xlim(0, 80)

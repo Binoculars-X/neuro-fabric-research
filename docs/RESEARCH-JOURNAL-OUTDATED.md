@@ -876,3 +876,14 @@ The only published char-level Shakespeare transformer reference is **Karpathy's 
 The Day 9 Shakespeare results (eval loss 1.0389–1.0522) were **in-sample** due to the eval bug. Those numbers are invalid and should not be used for paper comparisons. The correct held-out plateau is **~1.51 @ 172K samples**.
 
 The earlier claim "our model achieved eval loss comparable to published 10M-param baselines" was based on the invalid in-sample number and is retracted.
+
+---
+
+## Day 11 — Paper preprint published to GitHub
+
+**Date:** June 3, 2026
+
+- Published preprint of *"NeuronFabric: A Software Reference Architecture for On-Chip Transformer Training with Local Adam — BF16W Weights, Vocabulary Budget, and a Path to FPGA Training without a Host CPU"* to the `neuro-fabric-research` GitHub repository.
+- Repository version: **v1.1.0** (`neuro-fabric`), tagged and released.
+- Paper draft: `docs/paper/neuronFabric-def-v4-draft.tex`
+- Next steps: run `gpu-fp32-shakespeare-334k-b1-80k` and `cpu-bf16w-shakespeare-334k-b1-80k` against the tagged binary, update results table with measured values, update abstract commit hash, then submit to arXiv (cs.AR).

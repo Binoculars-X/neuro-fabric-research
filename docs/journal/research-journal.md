@@ -239,3 +239,44 @@
   - Sample output: single MENENIUS prompt (CPU BF16W, temp 0.8) — second prompt removed
   - Demo closing: "11,961s on CPU (no GPU required)"
 
+---
+
+## 03/06/26 — Day 16: Pre-Publication Verification Plan
+
+**Goal:** Before arXiv submission, independently verify every claim in the paper that could be wrong.
+Four verification tracks identified:
+
+**Track 1 — Convergence benchmarking (are our loss numbers reasonable?)**
+- Compare Shakespeare eval loss vs published char-level baselines (nanoGPT, Karpathy minGPT)
+- Compare TinyStories eval loss vs published word-level baselines at similar param budgets
+- If our numbers are significantly better than expected → likely a bug (eval leak, wrong split)
+- If significantly worse → possible Adam implementation issue
+- Tools: literature search + re-run with explicit logging of train vs val split sizes
+
+**Track 2 — Demo output coherence metrics (is "coherent" a real claim?)**
+- Current evidence: subjective human review only — not acceptable for a paper
+- Plan: compute perplexity on held-out Shakespeare val set from the BF16W checkpoint
+- Compare character n-gram entropy vs Shakespeare ground truth distribution
+- Optionally: BLEU/ROUGE vs reference passages (limited validity for char-level, but indicative)
+
+**Track 3 — Paper formula verification**
+- Re-derive Adam bias correction independently: confirm bc1/bc2 formula in code matches paper
+- Verify BF16W SRAM calculation: 334K × 10 bytes = 3.34 MB — check param count from code
+- Verify vocabulary-budget table: 100K params, d=64, three domains — re-run or verify from logs
+- Verify inter-chip bandwidth formula: T×d×4 = 128×88×4 = 45,056 bytes
+
+**Track 4 — FPGA arithmetic verification**
+- Count FMA operations per forward pass: attention (QKV matmuls, scores, weighted sum) + FF
+- Count FMA operations per backward pass
+- Estimate cycles at 150–200 MHz with realistic FMA parallelism (not 600 units — verify this number)
+- Verify BRAM block count: how many 36Kb BRAMs needed for 3.34 MB, check against ZCU102 spec
+- Verify DSP48 utilisation estimate for BF16 multiply-accumulate
+
+---
+
+## 03/06/26 — Day 16 (cont.): neuronFabric-preprint.pdf Released on GitHub
+
+- Released `neuronFabric-preprint.pdf` publicly on GitHub today
+- PDF compiled from `neuronFabric-preprint.tex` — full paper including all figures and references
+- This is the pre-arXiv public release; arXiv submission pending endorsement
+
