@@ -18,4 +18,6 @@ BF16W Weights, Vocabulary Budget, and a Path to FPGA Training without a Host CPU
 Pre-arXiv preprint serving as public architectural disclosure and prior-art record for the local Adam on-chip training architecture.
 Release v1.1.0, commit `e9ab47a`. arXiv submission pending endorsement.
 
+Preprint archive (Zenodo DOI): https://zenodo.org/records/20529108
+
 ---
