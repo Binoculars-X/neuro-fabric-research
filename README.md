@@ -5,4 +5,17 @@ ETH / USDT / USDC (ERC-20): **`0x82Bc45B772842457C21d8fF8517DE91F74470Ec9`**
 
 # neuro-fabric-research
 
-neuro-fabric-research — Experimental results, scaling data, and paper drafts for the neuro-fabric on-chip transformer training architecture
+Experimental results, scaling data, and paper drafts for the NeuronFabric on-chip transformer training architecture.
+
+---
+
+## Preprint & Prior-Art Disclosure
+
+**[NeuronFabric: A Software Reference Architecture for On-Chip Transformer Training with Local Adam](docs/neuronFabric_preprint.pdf)**
+
+BF16W Weights, Vocabulary Budget, and a Path to FPGA Training without a Host CPU.
+
+Pre-arXiv preprint serving as public architectural disclosure and prior-art record for the local Adam on-chip training architecture.
+Release v1.1.0, commit `e9ab47a`. arXiv submission pending endorsement.
+
+---

@@ -274,9 +274,43 @@ Four verification tracks identified:
 
 ---
 
+## 03/06/26 — Day 16 (cont.): CPU BF16W Demo Chat Output
+
+Ran `2.demochat.bat` on the CPU BF16W Shakespeare checkpoint (v1.1.0+e9ab47a), prompt `HAMLET:`:
+
+```
+Running demo: cpu-bf16w-shakespeare-334k-b1-80k
+
+NeuronFabric Demo v1.1.0+e9ab47ad79c442e1dc1eb0d4cc4aa61d8a127dfa  |  Apache 2.0 License  |  github.com/neuro-fabric
+
+Loading checkpoint.neuro ...
+Model ready  seqLen=128  vocabSize=256  savedWith=v1.1.0+e9ab47ad79c442e1dc1eb0d4cc4aa61d8a127dfa
+Temperature=0.8  GenerateLength=300  Dataset=shakespeare
+
+Type a prompt and press Enter to generate. Empty line = quit.
+------------------------------------------------------------
+
+> HAMLET:
+
+HAMLET:
+Break him of him; for that will for straight,
+The both speak ancible o'er an to him all in.
+
+Third Citizens:
+Here it field at be that were more cames,
+And then is only back'd lawly fortune our peint.
+Indlow. For my name more.
+
+DUKE VINCENTIO:
+It my straight souls, but mine so rebost 's be
+------------------------------------------------------------
+```
+
+- Output added to paper v5 `\textbf{Sample output}` paragraph (replacing older MENENIUS sample)
+
 ## 03/06/26 — Day 16 (cont.): neuronFabric-preprint.pdf Released on GitHub
 
 - Released `neuronFabric-preprint.pdf` publicly on GitHub today
-- PDF compiled from `neuronFabric-preprint.tex` — full paper including all figures and references
+- PDF compiled from `neuronFabric-preprint-v5.tex` — full paper including all figures and references
 - This is the pre-arXiv public release; arXiv submission pending endorsement
 
