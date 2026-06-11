@@ -21,3 +21,7 @@ Release v1.1.0, commit `e9ab47a`. arXiv submission pending endorsement.
 Preprint archive (Zenodo DOI): https://zenodo.org/records/20529108
 
 ---
+
+## Contact
+
+Evgeny Ukladchikov — [LinkedIn](https://www.linkedin.com/in/ev-uklad/) · ev.uklad@procoders.com.au
