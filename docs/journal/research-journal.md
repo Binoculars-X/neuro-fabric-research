@@ -374,10 +374,12 @@ missed rare words. Byte-level eliminates UNK entirely and reduces embedding tax:
 
 **Goal:** Prove N simple chips (MoE experts) cooperating with top-2 routing can match 1M dense BPC at ≤400K active params/token. Architecture constraint: each expert is a fully independent `AdamTransformerBus` — no merged TorchSharp model. Only token embeddings and output activations cross chip boundaries, mirroring real FPGA inter-chip communication.
 
+**BUG-007 fixed:** `MoETransformerBus.TrainBatch` now uses gradient accumulation — each expert calls `BackwardAndStep` once per batch (not B sequential Adam steps).
+
 **EXP-010 — MoE 4×200K @ 250K samples**
-- 4 × ~200K experts (embed=64, heads=2, ff=192, layers=4) + coordinator (~33K); topK=2; b=32
-- **BPC 1.2111** — well above single 200K (EXP-006: 1.530), approaching dense 1M (EXP-005: 1.166 @ 500K)
-- Routing did not collapse; coherent demo output; 45.26 ms/sample (serial expert loop in software)
+- 4 × ~200K experts (embed=64, heads=2, ff=192, layers=4) + coordinator; topK=2; b=32
+- **Eval loss 0.922, BPC 1.330, accuracy 71.80%** — decisively beats single 200K (EXP-006: 1.530); just behind dense 1M at same samples (EXP-005@250K: 0.865)
+- Routing did not collapse; ~22 ms/sample (serial expert loop in software)
 
 **EXP-011 — MoE 10×100K @ 500K samples**
 - 10 × ~100K experts (embed=48, heads=2, ff=144, layers=4) + coordinator; topK=2; b=32
@@ -390,8 +392,6 @@ missed rare words. Byte-level eliminates UNK entirely and reduces embedding tax:
 - Higher routing ratio (10×) extracts more specialization than lower ratio (4×) at same active param budget
 - Dense scaling plateau confirmed: 200K→300K dense gains almost nothing (EXP-006: 1.060 → EXP-012: 1.055)
 - **Core thesis validated:** MoE pays routing cost once in silicon area, not in per-token energy
-
-**Known issue — BUG-007:** `MoETransformerBus.TrainBatch` calls `TrainStep` B times → B Adam steps per expert. Results valid (model converges), suboptimal. Fix: accumulate gradients, call `BackwardAndStep` once.
 
 **FPGA XSim development started** ([FEAT-001](plan/feat-001-fpga-xsim-development-pipeline.md))
 - Bottom-up RTL pipeline: BF16 MAC → exp LUT → matmul → attention → MLP → LayerNorm → Adam
