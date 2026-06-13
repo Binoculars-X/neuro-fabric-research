@@ -378,11 +378,11 @@ missed rare words. Byte-level eliminates UNK entirely and reduces embedding tax:
 
 **EXP-010 — MoE 4×200K @ 250K samples**
 - 4 × ~200K experts (embed=64, heads=2, ff=192, layers=4) + coordinator; topK=2; b=32
-- **Eval loss 0.922, BPC 1.330, accuracy 71.80%** — decisively beats single 200K (EXP-006: 1.530); just behind dense 1M at same samples (EXP-005@250K: 0.865)
+- **Eval loss 0.922, BPC 1.330, accuracy 71.80%** — decisively beats single 200K (EXP-006: 1.530); just behind dense 1M at same samples (EXP-005@250K: 0.880)
 - Routing did not collapse; ~22 ms/sample (serial expert loop in software)
 
 **EXP-011 — MoE 10×100K @ 500K samples**
-- 10 × ~100K experts (embed=48, heads=2, ff=144, layers=4) + coordinator; topK=2; b=32
+- 10 × ~100K experts (embed=48, heads=2, ff=144, layers=4) + coordinator; topK=3; b=32
 - **BPC 1.223, eval loss 0.848, accuracy 73.99%** — beats dense 300K @ 500K (EXP-012: 0.962) by 0.114 loss
 - Same ~300K active params/token as EXP-012 dense; 10× routing ratio beats 4× (EXP-010: 1.330 BPC @ 250K)
 - GPU software: ~66 ms/sample (~10× slower than dense 300K) — software serialization artifact, not inherent MoE cost; on ASIC all expert tiles compute in parallel
