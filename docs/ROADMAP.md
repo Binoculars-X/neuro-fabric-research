@@ -181,6 +181,19 @@ The 100K param Shakespeare model fits comfortably on a single chip. Phase 3b use
 | Logic analyser (Saleae clone) | ~$20 |
 | **Total** | **~$150–$250** |
 
+### Phase 3b Risks and Pre-conditions
+
+| Risk | Reality | Mitigation |
+|---|---|---|
+| **Bare die packaging** | OpenMPW delivers unpackaged dies — cannot solder directly to PCB | Wire-bond to QFN carrier at packaging service lab (~$500–2K for 10 units); or die-on-board with wire-bond lab access |
+| **Actual cost** | "$150–$250" assumes packaged chips; real cost is ~$700–2.5K including packaging | Budget $2–3K; use self-funded buffer if needed |
+| **Inter-chip protocol must be in RTL at tapeout** | Cannot add inter-chip bus after Phase 3 chip is fabricated — it must be designed into the Phase 3 RTL | Design activation-passing bus (clock + data-valid + byte stream + ready/ack) as part of Phase 2b/3 RTL, before tapeout |
+| **PCB design skills** | Someone must know KiCad or pay a designer | Self-learn KiCad (~2–4 weeks for a simple SPI daisy-chain board) or hire Upwork designer (~$500–1K) |
+| **Single-chip validation first** | 10-chip PCB cannot be debugged if single chip is broken | Phase 3 must fully validate one chip in isolation (probe station or breakout board) before Phase 3b begins |
+| **Phase 3b is optional** | If Phase 3 single-chip demo is already convincing to investors, Phase 3b may not be needed before Series A | Decide after Phase 3 results — do not commit to Phase 3b until single-chip is proven |
+
+**Phase 3b go/no-go decision:** made after Phase 3 silicon validation. If single-chip demo (100K params, Shakespeare inference + backprop at <50 mW) is sufficient for Series A conversations, skip Phase 3b and go directly to Phase 4 raise. Phase 3b is the stronger demo but carries more execution risk.
+
 **This is the Series A demo:** a $250 PCB with 10 chips **training a 1M param language model** at under 1 W — generating readable English stories — with a logic analyser showing 512 bytes inter-chip traffic vs 14 GB for an equivalent GPU. No cloud. No data centre. An LLM learning on a board you can hold in your hand.
 
 ### The 5-Minute Investor Demo Script

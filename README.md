@@ -22,6 +22,13 @@ Preprint archive (Zenodo DOI): https://zenodo.org/records/20529108
 
 ---
 
+## Research Journal
+
+Day-by-day development log covering architecture decisions, experiment results, and engineering notes:
+**[docs/journal/research-journal.md](docs/journal/research-journal.md)**
+
+---
+
 ## Contact
 
 Evgeny Ukladchikov — [LinkedIn](https://www.linkedin.com/in/ev-uklad/) · ev.uklad@procoders.com.au
