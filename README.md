@@ -5,7 +5,7 @@ ETH / USDT / USDC (ERC-20): **`0x82Bc45B772842457C21d8fF8517DE91F74470Ec9`**
 
 # neuro-fabric-research
 
-Experimental results, scaling data, and paper drafts for the NeuronFabric on-chip transformer training architecture.
+Experimental results, scaling data, and paper drafts for the NeuronFabric on-chip transformer training architecture. RTL and FPGA verification are in [`neuro-fabric-fpga`](https://github.com/Binoculars-X/neuro-fabric-fpga).
 
 ---
 
