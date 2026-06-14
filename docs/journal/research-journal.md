@@ -403,3 +403,42 @@ missed rare words. Byte-level eliminates UNK entirely and reduces embedding tax:
 - C# `Neuro.Attention.XSim.LocalTests` project: generates hex test vectors from C# reference, invokes xvlog/xelab/xsim automatically, checks pass/fail as xUnit tests
 - Verification: **1 ULP tolerance** using `ReferenceExactHardwareMode` (`(float)((double)x op (double)y)`) to match XSim's shortreal→double promotion artifact
 
+---
+
+## 14/06/26 — Day 20: Attention Core RTL Complete (FEAT-001 Step 3)
+
+**All FEAT-001 step 3 sub-modules implemented and passing XSim — full attention forward path verified in RTL.**
+
+**New RTL modules:**
+- `fp32_matmul.sv` — 4×4×4 FP32×FP32 matmul (Q·Kᵀ score matrix, A·V weighted sum)
+- `fp32_add_tree.sv` — parameterised balanced binary tree reduction over T FP32 values
+- `fp32_div.sv` — scalar FP32 division (softmax normalisation)
+- `softmax.sv` — per-row softmax with causal mask, LUT-256 exp, add-tree sum, T parallel dividers
+- `attention_core.sv` — full single-head forward pass integrator (new, implemented today)
+
+**`attention_core.sv` architecture:**
+- Reuses one `bf16w_matmul` instance for all 4 matmul ops (Q=X·Wq, K=X·Wk, V=X·Wv, Y=Z·Wo)
+- Reuses one `fp32_matmul` instance for scores (Q·Kᵀ/√DH) and weighted sum (A·V)
+- Reuses one `softmax` instance, processing T rows sequentially
+- 25-state FSM; scale 1/√DH = 0.5 applied via `$bitstoshortreal` multiply in SC_WAIT state
+- T=4, D=4, DH=4 (all dimensions equal — enables register file reuse)
+
+**Test infrastructure:**
+- `tb_attention_core.sv` — testbench loading X + 4 weight matrices, writing output.hex
+- `FpgaAttentionCoreVecGen.cs` — C# reference with full ReferenceExactHardwareMode chain
+- `AttentionCoreTests.cs` — 2 seeds, `XSimCollection.UlpRelTol` (1 ULP) tolerance
+- **Both tests pass on first run** — no tolerance tuning needed
+
+**Test suite cleanup:**
+- All hardcoded ULP literals replaced with `XSimCollection.UlpRelTol` (currently 1) — single constant controls the whole suite
+- Special cases preserved: `ExpLutTests` (16 ULP, LUT approximation artifact), `SoftmaxTests` (2 ULP, x87 accumulation through 4-stage pipeline)
+- Total: **33 XSim tests, all passing**
+
+**Test approach (C# assertions, not RTL assertions):**
+- Testbench writes `output.hex` + `"PASS"` to `pass_fail.txt` — no numeric comparisons in RTL
+- C# reads `output.hex`, computes per-element ULP distance against a reference built with `ReferenceExactHardwareMode`
+- `ReferenceExactHardwareMode`: every FP32 op is `(float)((double)x op (double)y)` — matches XSim's x87 80-bit intermediate precision
+- Softmax reference additionally uses double-promoted adder-tree sum and division to match RTL pipeline structure exactly
+- Separation of concerns: RTL is the DUT, C# is the oracle; assertion failures show exact element, RTL value, expected value, and ULP distance
+
+
