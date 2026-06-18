@@ -441,4 +441,24 @@ missed rare words. Byte-level eliminates UNK entirely and reduces embedding tax:
 - Softmax reference additionally uses double-promoted adder-tree sum and division to match RTL pipeline structure exactly
 - Separation of concerns: RTL is the DUT, C# is the oracle; assertion failures show exact element, RTL value, expected value, and ULP distance
 
+---
+
+## 18/06/26 — Week 5: Synthesizable RTL Rewrite + arXiv Published
+
+*Journal moves to weekly cadence from this point. Daily entries reserved for significant research findings.*
+
+**arXiv published:** paper accepted and live — [arXiv:2606.16440](https://arxiv.org/abs/2606.16440). Public prior-art record established.
+
+**Organisation website development started:** landing page for NeuronFabric / Binoculars-X under development.
+
+**FEAT-002 — Full synthesizable RTL rewrite (ongoing):**
+- Root cause: all FEAT-001 RTL used `shortreal`/`$bitstoshortreal` — simulation-only constructs; Vivado synthesis rejects them entirely. Identified by community feedback (Reddit, 2026-06-16).
+- Rewrote all Tier 1-3 modules as hand-written IEEE 754 hardware datapaths (`logic [31:0]`, DSP48E2 inference, no vendor IP):
+  - Tier 1: `fp32_mul` (3 cy), `fp32_add` (4 cy), `fp32_sqrt` (29 cy, ROM + 2x Newton-Raphson), `fp32_div` (32 cy)
+  - Tier 2: `fp32_add_tree` (8 cy), `bf16_mac` / `bf16w_mac` (7 cy)
+  - Tier 3: `bf16_matmul` / `bf16w_matmul` / `fp32_matmul` (15 cy)
+- **30/30 XSim tests pass** against C# reference (verified 2026-06-18).
+- CI lint (`rtl-lint.yml`) merged to `.github/workflows/` — hard-fails on any banned construct in `fpga/rtl/` on every PR.
+- Remaining: Tier 4 (exp_lut, gelu, softmax, layernorm), Tier 5 (adam_cell/core), Tier 6 (attention_core, mlp_core, transformer).
+
 

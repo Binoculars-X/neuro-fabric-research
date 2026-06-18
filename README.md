@@ -19,6 +19,7 @@ Pre-arXiv preprint serving as public architectural disclosure and prior-art reco
 Release v1.1.0, commit `e9ab47a`. arXiv submission pending endorsement.
 
 Preprint archive (Zenodo DOI): https://zenodo.org/records/20529108
+arXiv: https://arxiv.org/abs/2606.16440
 
 ---
 
