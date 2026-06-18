@@ -1,4 +1,4 @@
-# NeuronFabric — Architecture Challenges
+# NeuroFabric — Architecture Challenges
 
 ---
 
@@ -17,13 +17,13 @@
 - At 200 MHz (130nm): **~1.5 µs forward + 4.5 µs backprop per token**
 
 ### vs H100
-| Metric | NeuronFabric (1 chip) | H100 |
+| Metric | NeuroFabric (1 chip) | H100 |
 |---|---|---|
 | Latency (batch=1) | **~1-2 µs** | ~1 ms — 500-1000× slower |
 | Throughput (batch=1024) | ~500K tokens/sec | ~10M tokens/sec — 20× faster |
 | Power | **~1-3W** | 700W |
 
-**NeuronFabric wins on latency. H100 wins on throughput** — it processes thousands of samples simultaneously with 16K CUDA cores and 3.35 TB/s HBM bandwidth.
+**NeuroFabric wins on latency. H100 wins on throughput** — it processes thousands of samples simultaneously with 16K CUDA cores and 3.35 TB/s HBM bandwidth.
 
 ### Solution — 1000-chip PCB
 At 1000 chips × 1B params = 1T params (GPT-4 class):
@@ -61,7 +61,7 @@ Adam maintains per-weight first moment $m_t$ (gradient mean) and second moment $
 
 ### ASIC implication
 
-The current NeuronFabric chip implements SGD: `w -= lr * dw`. This is 1 multiply-accumulate per weight per step.
+The current NeuroFabric chip implements SGD: `w -= lr * dw`. This is 1 multiply-accumulate per weight per step.
 
 Adam requires **2 additional registers per weight** ($m$ and $v$) and **3 extra operations per weight per step** (update $m$, update $v$, compute $m/\sqrt{v}$). For a 100K param chip:
 

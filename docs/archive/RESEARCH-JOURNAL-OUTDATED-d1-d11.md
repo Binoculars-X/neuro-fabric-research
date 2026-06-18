@@ -1,4 +1,4 @@
-# NeuronFabric — Development Journal
+# NeuroFabric — Development Journal
 
 ---
 
@@ -50,7 +50,7 @@
 
 ### Domain-specialised 100K LLM (FPGA target)
 
-> **Design constraint**: NeuronFabric ASIC/FPGA chip = fixed ~100K param budget. Cannot scale params —
+> **Design constraint**: NeuroFabric ASIC/FPGA chip = fixed ~100K param budget. Cannot scale params —
 > must specialise the domain instead. Multiple chips pipeline for longer generation.
 
 #### Appointment domain (vocab=49)
@@ -863,7 +863,7 @@ The only published char-level Shakespeare transformer reference is **Karpathy's 
 | Model | Params | Context | Layers/Heads | Val Loss | Notes |
 |---|---|---|---|---|---|
 | nanoGPT char-level | ~10M | 256 | 6L/6H, embed=384 | **1.4697** | A100, ~3 min |
-| **NeuronFabric GPU Adam** | **~1M** | **128** | **4L/4H, embed=128** | **~1.51** | RTX 4090, ~36 min |
+| **NeuroFabric GPU Adam** | **~1M** | **128** | **4L/4H, embed=128** | **~1.51** | RTX 4090, ~36 min |
 
 **Gap: +0.04 loss with 10× fewer parameters.** This is not a competitive claim — nanoGPT uses 10× more params and 2× longer context. The comparison establishes that our architecture is in the correct ballpark and not fundamentally broken.
 
@@ -883,7 +883,7 @@ The earlier claim "our model achieved eval loss comparable to published 10M-para
 
 **Date:** June 3, 2026
 
-- Published preprint of *"NeuronFabric: A Software Reference Architecture for On-Chip Transformer Training with Local Adam — BF16W Weights, Vocabulary Budget, and a Path to FPGA Training without a Host CPU"* to the `neuro-fabric-research` GitHub repository.
+- Published preprint of *"NeuroFabric: A Software Reference Architecture for On-Chip Transformer Training with Local Adam — BF16W Weights, Vocabulary Budget, and a Path to FPGA Training without a Host CPU"* to the `neuro-fabric-research` GitHub repository.
 - Repository version: **v1.1.0** (`neuro-fabric`), tagged and released.
-- Paper draft: `docs/paper/neuronFabric-def-v4-draft.tex`
+- Paper draft: `docs/paper/NeuroFabric-def-v4-draft.tex`
 - Next steps: run `gpu-fp32-shakespeare-334k-b1-80k` and `cpu-bf16w-shakespeare-334k-b1-80k` against the tagged binary, update results table with measured values, update abstract commit hash, then submit to arXiv (cs.AR).

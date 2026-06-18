@@ -72,7 +72,7 @@ in the 200–300K range for this dataset and sequence length.
 
 MoE routing allows the same **active** parameter budget to reach ~1M total params and extracts
 a large quality jump (+13.5% loss reduction) with no per-token compute increase, at the cost of
-routing infrastructure. **This is the core empirical argument for MoE in NeuronFabric.**
+routing infrastructure. **This is the core empirical argument for MoE in NeuroFabric.**
 
 ## Note on GPU training speed vs ASIC inference speed
 
@@ -83,7 +83,7 @@ On a GPU, expert dispatch is serialized: the router selects an expert, dispatche
 waits for the result, then moves to the next token. All 10 expert weight matrices compete for
 the same memory bandwidth and compute units. The overhead is real and unavoidable in software.
 
-On a **dedicated ASIC** (the NeuronFabric target architecture), each expert is a separate
+On a **dedicated ASIC** (the NeuroFabric target architecture), each expert is a separate
 physical tile with its own weight SRAM and MAC array. The router broadcasts the token to all
 active expert tiles **simultaneously** — true hardware parallelism. All active experts compute
 in parallel and the results are summed. Latency = one expert's latency, regardless of expert
@@ -97,7 +97,7 @@ count.
 
 The GPU experiments prove the **quality advantage** of MoE. The ASIC argument is that you get
 that quality at **no runtime or energy cost** compared to an equivalent dense 300K chip — which
-is the central NeuronFabric thesis: *pay for routing once in silicon area, not in per-token
+is the central NeuroFabric thesis: *pay for routing once in silicon area, not in per-token
 energy*.
 
 ## Demo output @ 250K (temp=0.8)

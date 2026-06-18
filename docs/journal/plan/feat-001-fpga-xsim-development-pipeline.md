@@ -8,7 +8,7 @@ In progress — steps 1, 1b, 2, 2b complete and passing XSim; ready for step 3 (
 
 ## Description
 
-Standard bottom-up pipeline for bringing NeuronFabric training onto Xilinx FPGA with XSim simulation at each layer before moving to hardware.
+Standard bottom-up pipeline for bringing NeuroFabric training onto Xilinx FPGA with XSim simulation at each layer before moving to hardware.
 
 ## Development order
 

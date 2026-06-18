@@ -1,4 +1,4 @@
-# NeuronFabric Silicon Roadmap
+# NeuroFabric Silicon Roadmap
 ## From 1M-Param Proof to Brain-Scale Analogue CIM
 
 ---
@@ -12,7 +12,7 @@ Every forward pass, a GPU must stream all weights from HBM (off-chip DRAM) to co
 - HBM bandwidth: ~3 TB/s → **67ms just to read weights**
 - Power profile: ~700W, mostly memory bandwidth
 
-**NeuronFabric approach:** weights live permanently inside the chip — in SRAM (Phase 1 FPGA/ASIC) or in an on-package DRAM array with embedded compute logic (Phase 2 DRAM-PIM). In both cases weights never leave the chip. Only activations and gradients cross chip boundaries.
+**NeuroFabric approach:** weights live permanently inside the chip — in SRAM (Phase 1 FPGA/ASIC) or in an on-package DRAM array with embedded compute logic (Phase 2 DRAM-PIM). In both cases weights never leave the chip. Only activations and gradients cross chip boundaries.
 No streaming. No memory wall. Pure multiply-accumulate.
 
 > *GPUs waste most of their energy moving weights. Our chip never moves them.*
@@ -42,7 +42,7 @@ The architecture improves automatically with every node shrink — no redesign r
 
 ### 2b. DRAM-PIM die (Phase 2 — Processing-In-Memory ASIC)
 
-A more radical approach: a multi-die DRAM package (8–16 GB total) with an embedded compute die — similar to HBM architecture but targeting full training rather than inference-only. A single LPDDR5 die holds ~0.75–1.5 GB; an 8 GB package stacks 6–8 such dies with one logic/compute die at the base (the same pattern as Samsung HBM-PIM and SK Hynix AiM). The DRAM array **is** the chip — weights never leave the package. Only activations and gradients cross chip boundaries, exactly as the NeuronFabric software architecture already enforces.
+A more radical approach: a multi-die DRAM package (8–16 GB total) with an embedded compute die — similar to HBM architecture but targeting full training rather than inference-only. A single LPDDR5 die holds ~0.75–1.5 GB; an 8 GB package stacks 6–8 such dies with one logic/compute die at the base (the same pattern as Samsung HBM-PIM and SK Hynix AiM). The DRAM array **is** the chip — weights never leave the package. Only activations and gradients cross chip boundaries, exactly as the NeuroFabric software architecture already enforces.
 
 **Permanent training memory per param (BF16W Adam):**
 
@@ -60,7 +60,7 @@ Gradients are transient: with layer-by-layer backward + activation recomputation
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  NeuronFabric DRAM-PIM Package                      │
+│  NeuroFabric DRAM-PIM Package                      │
 │                                                     │
 │  ┌───────────────────────────────────────────────┐  │
 │  │ DRAM die 5  (~1.5 GB)  weights + m + v        │  │
@@ -103,7 +103,7 @@ One FMA unit serves all ~2048 weights in its subarray sequentially (one weight u
 - vs DRAM cell transistors: ~54 billion
 - Compute overhead: 10B ÷ 54B = **~19%**
 
-Samsung HBM-PIM achieves ~10–20% area overhead with more complex SIMD units — NeuronFabric's simpler per-subarray design lands in the same range. **~19% overhead confirmed feasible**, consistent with the 15–20% budget used in the capacity table above.
+Samsung HBM-PIM achieves ~10–20% area overhead with more complex SIMD units — NeuroFabric's simpler per-subarray design lands in the same range. **~19% overhead confirmed feasible**, consistent with the 15–20% budget used in the capacity table above.
 
 **Trainable params by chip size (10 bytes/param permanent, 85% DRAM available):**
 
@@ -130,7 +130,7 @@ Samsung HBM-PIM achieves ~10–20% area overhead with more complex SIMD units �
 - The `ApplyUpdate` hook in the software architecture maps directly to the DRAM write path — no algorithm change required at any scale
 
 **Relationship to existing PIM research:**
-Samsung HBM-PIM and SK Hynix AiM both add compute to DRAM but target **inference only**. NeuronFabric's contribution is the full **training** loop (forward + backward + Adam) running inside the memory chip, validated by the software reference implementation in this repository.
+Samsung HBM-PIM and SK Hynix AiM both add compute to DRAM but target **inference only**. NeuroFabric's contribution is the full **training** loop (forward + backward + Adam) running inside the memory chip, validated by the software reference implementation in this repository.
 
 ---
 
@@ -195,7 +195,7 @@ Both axes scale **linearly** with chip count. No quadratic memory bandwidth wall
 | **1T training system** | **~1,500** | **~1T** | — | **~12kW** | Frontier AI training |
 
 **vs GPU equivalent for 1T training:** ~6,000 H100s × 700W = **~4 MW**
-**NeuronFabric DRAM-PIM:** ~12 kW — **~330× less power**
+**NeuroFabric DRAM-PIM:** ~12 kW — **~330× less power**
 
 ---
 
@@ -215,7 +215,7 @@ The FPGA proof-of-concept runs batch=1 due to BRAM constraints — this is an FP
 | 1 (FPGA) | ~2µs | 1 | No — GPU wins on GEMM |
 | 32 (current SW) | ~2µs | 32 | Partially |
 | 256 (ASIC target) | ~2µs | 256 | Yes — memory wall gap closed |
-| 1024 (ASIC max) | ~2µs | 1024 | Yes — NeuronFabric leads on tokens/joule |
+| 1024 (ASIC max) | ~2µs | 1024 | Yes — NeuroFabric leads on tokens/joule |
 
 ### 6b. Pipeline fill — activation streaming
 A 1000-chip pipeline, once filled, processes one new batch per chip-latency tick. The pipeline is never idle after warm-up:
@@ -238,7 +238,7 @@ For very large effective batch sizes (e.g. batch=4096), micro-batches of 256 are
 
 ### 6e. Throughput target vs H100
 
-| Metric | H100 | NeuronFabric DRAM-PIM (1000 chips) | Advantage |
+| Metric | H100 | NeuroFabric DRAM-PIM (1000 chips) | Advantage |
 |---|---|---|---|
 | Peak FLOPS | 2000 TFLOPS | ~200 TFLOPS (est.) | GPU 10× |
 | Weight streaming | 700W to move | 0W — stationary | NF wins |
@@ -246,7 +246,7 @@ For very large effective batch sizes (e.g. batch=4096), micro-batches of 256 are
 | Adam step latency | ~10ms (stream all weights) | ~2µs (parallel in-place) | **NF 5000×** |
 | Scaling cost | +$30k/chip | +$50–200/chip (DRAM pkg) | **NF wins** |
 
-**The roadmap goal:** at batch=256+ with pipeline-parallel execution, NeuronFabric DRAM-PIM matches or exceeds H100 tokens/second at 1/100th the power per token. Raw FLOPS is not the target — **tokens/joule is the target**.
+**The roadmap goal:** at batch=256+ with pipeline-parallel execution, NeuroFabric DRAM-PIM matches or exceeds H100 tokens/second at 1/100th the power per token. Raw FLOPS is not the target — **tokens/joule is the target**.
 
 ### 6f. Post-silicon optimization compounding — the long game
 
@@ -277,9 +277,9 @@ First silicon is only the starting point. Once the architecture exists in hardwa
 | Gen 1 — first silicon | Architecture correct, unoptimised | ~0.1–0.5× tokens/sec, ~100–330× tokens/joule |
 | Gen 2 — co-designed GEMM + DRAM | Dedicated compute array | ~1× tokens/sec (parity), ~200× tokens/joule |
 | Gen 3 — custom dataflow + routing | Architecture-specific scheduler | ~3–10× tokens/sec, ~500× tokens/joule |
-| Gen 4 — full stack (HW + SW + model) | NeuronFabric-native models | **~10–100× tokens/sec**, **~1000× tokens/joule** |
+| Gen 4 — full stack (HW + SW + model) | NeuroFabric-native models | **~10–100× tokens/sec**, **~1000× tokens/joule** |
 
-NVIDIA spent 15 years reaching H100 from G80. NeuronFabric starts from a structurally superior base — weights never move — so the ceiling is fundamentally higher. **First silicon proves the principle. The optimization curve is where the performance lead is built.**
+NVIDIA spent 15 years reaching H100 from G80. NeuroFabric starts from a structurally superior base — weights never move — so the ceiling is fundamentally higher. **First silicon proves the principle. The optimization curve is where the performance lead is built.**
 
 ---
 
@@ -291,8 +291,8 @@ The brain processes a full cortical inference cycle in ~10 ms.
 |---|---|---|
 | Human brain | ~10,000 µs | baseline |
 | GPU H100 (DRAM bottleneck) | ~500 µs | 20× faster |
-| NeuronFabric 5nm mesh (1T) | ~50 µs | **200× faster** |
-| NeuronFabric 2nm mesh (1T) | ~20 µs | 500× faster |
+| NeuroFabric 5nm mesh (1T) | ~50 µs | **200× faster** |
+| NeuroFabric 2nm mesh (1T) | ~20 µs | 500× faster |
 
 **Latency is already solved.** The remaining race is purely **watts per synapse**.
 
@@ -307,7 +307,7 @@ does the accumulation. Zero data movement, zero clock cycles for the multiply.
 | Technology | Energy/MAC | Status |
 |---|---|---|
 | GPU (H100) | ~100 pJ | Production |
-| Digital SRAM (NeuronFabric today) | ~1 pJ | Buildable now |
+| Digital SRAM (NeuroFabric today) | ~1 pJ | Buildable now |
 | Analogue SRAM CIM (forward pass) | ~0.01 pJ | Silicon proven (ISSCC 2023–25) |
 | **Analogue CIM + analogue Adam** | **~0.001 pJ** | Research (3–5 years) |
 
@@ -325,7 +325,7 @@ The sqrt/divide is ~5% of total Adam operations. 95% is linear — fits analogue
 **Approximate analogue Adam** (active research 2024–25):
 - Replace `√v` with `|grad|` → fully analogue (sign-gradient methods)
 - β values baked into capacitor ratios
-- 6-bit moment precision — NeuronFabric BF16 results justify this is sufficient
+- 6-bit moment precision — NeuroFabric BF16 results justify this is sufficient
 
 Each weight becomes an **RC cell**: capacitors store m and v, charge/discharge rates = β1, β2,
 input current = gradient, output voltage = updated weight. No digital logic, no clock.
@@ -343,7 +343,7 @@ input current = gradient, output voltage = updated weight. No digital logic, no 
 
 ### Digital SRAM mesh
 
-| Params | NeuronFabric digital | GPU cluster |
+| Params | NeuroFabric digital | GPU cluster |
 |---|---|---|
 | 1T | 120W | 4,000W |
 | 10T | 1,200W | 40,000W |
@@ -363,7 +363,7 @@ input current = gradient, output voltage = updated weight. No digital logic, no 
 
 ## 10. Brain Comparison at 100T Params
 
-| Metric | Human brain | NeuronFabric analogue CIM |
+| Metric | Human brain | NeuroFabric analogue CIM |
 |---|---|---|
 | Synapses / params | ~100T | 100T |
 | Power | 20W | ~200W |

@@ -5,13 +5,13 @@ ETH / USDT / USDC (ERC-20): **`0x82Bc45B772842457C21d8fF8517DE91F74470Ec9`**
 
 # neuro-fabric-research
 
-Experimental results, scaling data, and paper drafts for the NeuronFabric on-chip transformer training architecture. RTL and FPGA verification are in [`fpga/`](https://github.com/Binoculars-X/neuro-fabric/tree/main/fpga) (part of the main [neuro-fabric](https://github.com/Binoculars-X/neuro-fabric) repo).
+Experimental results, scaling data, and paper drafts for the NeuroFabric on-chip transformer training architecture. RTL and FPGA verification are in [`fpga/`](https://github.com/Binoculars-X/neuro-fabric/tree/main/fpga) (part of the main [neuro-fabric](https://github.com/Binoculars-X/neuro-fabric) repo).
 
 ---
 
 ## Preprint & Prior-Art Disclosure
 
-**[NeuronFabric: A Software Reference Architecture for On-Chip Transformer Training with Local Adam](docs/neuronFabric_preprint.pdf)**
+**[NeuroFabric: A Software Reference Architecture for On-Chip Transformer Training with Local Adam](docs/NeuroFabric_preprint.pdf)**
 
 BF16W Weights, Vocabulary Budget, and a Path to FPGA Training without a Host CPU.
 

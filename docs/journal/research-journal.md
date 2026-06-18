@@ -1,4 +1,4 @@
-# NeuronFabric — Research Journal
+# NeuroFabric — Research Journal
 <!-- CRITICAL: max 30 lines per daily block. Date format: dd/MM/YY -->
 
 ---
@@ -132,7 +132,7 @@
 | Model | Params | Val Loss |
 |---|---|---|
 | nanoGPT char-level | ~10M | 1.4697 |
-| **NeuronFabric GPU Adam** | **~1M** | **~1.51** |
+| **NeuroFabric GPU Adam** | **~1M** | **~1.51** |
 
 - +0.04 loss gap with 10× fewer params — architecture in correct ballpark, not broken
 - All future scaling experiments to use `trainapp2` with proper held-out eval
@@ -230,7 +230,7 @@
   - Gap: +0.025 val loss, 7.7× slower — slightly tighter than exp002 (+0.027, 8.4×)
 - **exp003 reports** created: `docs/journal/experiments/exp003/` (GPU + BF16W markdown reports with raw logs and demo output).
 - **Loss chart (Figure 2)** regenerated from 80K logs; "exp003" label removed from title.
-- **Paper v3** (`neuronFabric-v3-draft.tex`) created and fully updated:
+- **Paper v3** (`NeuroFabric-v3-draft.tex`) created and fully updated:
   - Release v1.0.1 → v1.0.2 (commit `86642e2`) throughout
   - 85K → 80K samples throughout
   - Results table: GPU 1.5226/55.79%/19.37, BF16W 1.5477/54.57%/149.51
@@ -281,7 +281,7 @@ Ran `2.demochat.bat` on the CPU BF16W Shakespeare checkpoint (v1.1.0+e9ab47a), p
 ```
 Running demo: cpu-bf16w-shakespeare-334k-b1-80k
 
-NeuronFabric Demo v1.1.0+e9ab47ad79c442e1dc1eb0d4cc4aa61d8a127dfa  |  Apache 2.0 License  |  github.com/neuro-fabric
+NeuroFabric Demo v1.1.0+e9ab47ad79c442e1dc1eb0d4cc4aa61d8a127dfa  |  Apache 2.0 License  |  github.com/neuro-fabric
 
 Loading checkpoint.neuro ...
 Model ready  seqLen=128  vocabSize=256  savedWith=v1.1.0+e9ab47ad79c442e1dc1eb0d4cc4aa61d8a127dfa
@@ -308,10 +308,10 @@ It my straight souls, but mine so rebost 's be
 
 - Output added to paper v5 `\textbf{Sample output}` paragraph (replacing older MENENIUS sample)
 
-## 03/06/26 — Day 16 (cont.): neuronFabric-preprint.pdf Released on GitHub
+## 03/06/26 — Day 16 (cont.): NeuroFabric-preprint.pdf Released on GitHub
 
-- Released `neuronFabric-preprint.pdf` publicly on GitHub today
-- PDF compiled from `neuronFabric-preprint-v5.tex` — full paper including all figures and references
+- Released `NeuroFabric-preprint.pdf` publicly on GitHub today
+- PDF compiled from `NeuroFabric-preprint-v5.tex` — full paper including all figures and references
 - This is the pre-arXiv public release; arXiv submission pending endorsement
 
 ---
@@ -449,7 +449,7 @@ missed rare words. Byte-level eliminates UNK entirely and reduces embedding tax:
 
 **arXiv published:** paper accepted and live — [arXiv:2606.16440](https://arxiv.org/abs/2606.16440). Public prior-art record established.
 
-**Organisation website development started:** landing page for NeuronFabric / Binoculars-X under development.
+**Organisation website development started:** landing page for NeuroFabric / Binoculars-X under development.
 
 **FEAT-002 — Full synthesizable RTL rewrite (ongoing):**
 - Root cause: all FEAT-001 RTL used `shortreal`/`$bitstoshortreal` — simulation-only constructs; Vivado synthesis rejects them entirely. Identified by community feedback (Reddit, 2026-06-16).

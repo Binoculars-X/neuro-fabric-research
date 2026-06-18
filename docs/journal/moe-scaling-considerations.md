@@ -129,4 +129,4 @@ The per-chip parameter limit is a **storage constraint**, solved by adding more 
 | Expert gradient staleness | ⚠️ Partially | Larger batch size per step |
 | Training stability at 2500 chips | ⚠️ Partially | Load balancing loss, capacity factor |
 
-**NeuronFabric chips have no fundamental parameter ceiling.** The 400M/chip limit is overcome by MoE across N chips. The remaining gaps to GPT-4-class models are training methodology problems (RLHF, long context) that apply equally to GPU clusters — they are not unique to this architecture, and the chip design is not blocked by them.
+**NeuroFabric chips have no fundamental parameter ceiling.** The 400M/chip limit is overcome by MoE across N chips. The remaining gaps to GPT-4-class models are training methodology problems (RLHF, long context) that apply equally to GPU clusters — they are not unique to this architecture, and the chip design is not blocked by them.

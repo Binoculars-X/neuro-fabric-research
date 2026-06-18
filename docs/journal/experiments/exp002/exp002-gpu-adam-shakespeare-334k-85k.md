@@ -72,7 +72,7 @@ Intend not the grave of state, carge of Elbow?
 ## Raw training log
 
 ```
-NeuronFabric TrainApp v1.0.1+b4478463854f94e6f47694ddfc13afe1546a6488  |  Apache 2.0 License  |  github.com/neuro-fabric
+NeuroFabric TrainApp v1.0.1+b4478463854f94e6f47694ddfc13afe1546a6488  |  Apache 2.0 License  |  github.com/neuro-fabric
 
 Dataset: Shakespeare, vocab=256, train=1,039,854, val=115,540
 New model (GPU Adam FP32): seqLen=128 embedDim=88 heads=4 ff=264 layers=4

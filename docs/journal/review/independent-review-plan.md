@@ -1,4 +1,4 @@
-# Independent Review Plan — NeuronFabric Paper 1
+# Independent Review Plan — NeuroFabric Paper 1
 
 **Goal:** Before arXiv submission, get independent verification of every claim that could embarrass if wrong.
 

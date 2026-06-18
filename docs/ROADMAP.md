@@ -1,4 +1,4 @@
-# NeuronFabric — Multi-Phase Commercialisation Roadmap
+# NeuroFabric — Multi-Phase Commercialisation Roadmap
 
 ---
 
@@ -23,9 +23,9 @@ We will invest **up to $50K of own capital** if needed for chip production (PCB,
 
 ## Architecture Advantage Summary
 
-Unlike systolic arrays (TPU, ANE, Groq) that are **inference-only** and require a separate GPU cluster for training, NeuronFabric keeps weights permanently in local SRAM next to each compute unit and supports native backpropagation on-chip. Training and inference happen on the same hardware.
+Unlike systolic arrays (TPU, ANE, Groq) that are **inference-only** and require a separate GPU cluster for training, NeuroFabric keeps weights permanently in local SRAM next to each compute unit and supports native backpropagation on-chip. Training and inference happen on the same hardware.
 
-| Property | GPU cluster (H100) | Inference-only ASICs (Groq/ANE) | NeuronFabric |
+| Property | GPU cluster (H100) | Inference-only ASICs (Groq/ANE) | NeuroFabric |
 |---|---|---|---|
 | On-chip training (backprop) | Yes, but ~1 MW/cluster | **No** | **Yes** |
 | Training power | ~1 MW (data centre) | N/A | **~watts (on-chip)** |
@@ -247,7 +247,7 @@ Setup: 10-chip PCB, power meter, laptop showing perplexity graph. Weights random
 | Flash (weight persistence) | Embedded eFlash on-die — weights survive power-off |
 
 ### Unit Economics at 100K Units
-| Cost | NeuronFabric | H100 equiv. |
+| Cost | NeuroFabric | H100 equiv. |
 |---|---|---|
 | Silicon | ~$55 | ~$280 |
 | Packaging | ~$30 (no HBM) | ~$1,000 (CoWoS + 6× HBM) |
@@ -287,7 +287,7 @@ Scales linearly: 1000 chips = 1000× parameters, same inter-chip bandwidth.
 | Max cluster | 2,000 | ~2T | Beyond GPT-4 | ~5 kW |
 
 Compare: GPT-4 inference on H100 cluster = **~1 MW**.  
-NeuronFabric 1T synapse cluster = **~2.5 kW** — **400× lower power**.
+NeuroFabric 1T synapse cluster = **~2.5 kW** — **400× lower power**.
 
 ### Unit Economics at 1M Chips Produced
 | Cost component | Per chip |
@@ -312,9 +312,9 @@ NeuronFabric 1T synapse cluster = **~2.5 kW** — **400× lower power**.
 | Cerebras | WSE-3 | No | Wafer-scale SRAM | ~$2–5M/system |
 | Groq | LPU | No | SRAM, no HBM | ~$20K/card |
 | Tenstorrent | Wormhole | Partial | SRAM + DRAM | ~$1,500/card |
-| **NeuronFabric** | **Phase 5 ASIC** | **Yes** | **Zero (weights static)** | **~$250 target** |
+| **NeuroFabric** | **Phase 5 ASIC** | **Yes** | **Zero (weights static)** | **~$250 target** |
 
-**Unique differentiator:** NeuronFabric is the only architecture with **native on-chip backpropagation** — train a model at milliwatts on-chip. No competitor (Groq, Cerebras, ANE, TPU) supports on-chip training.
+**Unique differentiator:** NeuroFabric is the only architecture with **native on-chip backpropagation** — train a model at milliwatts on-chip. No competitor (Groq, Cerebras, ANE, TPU) supports on-chip training.
 
 ---
 
@@ -329,4 +329,4 @@ NeuronFabric 1T synapse cluster = **~2.5 kW** — **400× lower power**.
 
 **Comparables:** Groq ($300M raised), Cerebras ($720M), Tenstorrent ($700M, backed by Samsung + Hyundai).
 
-The NeuronFabric differentiation over all three: **native backprop + zero weight traffic + linear multi-chip scaling**.
+The NeuroFabric differentiation over all three: **native backprop + zero weight traffic + linear multi-chip scaling**.

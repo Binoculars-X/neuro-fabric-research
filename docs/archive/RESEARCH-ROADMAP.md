@@ -1,4 +1,4 @@
-# NeuronFabric — Research Roadmap & Publication Strategy
+# NeuroFabric — Research Roadmap & Publication Strategy
 
 ---
 
@@ -7,11 +7,11 @@
 > A human brain learns continuously at 20 W.
 > Training GPT-4 required ~30 MW sustained for months.
 > The gap is architectural: every chip today separates the weight update from the weight storage.
-> NeuronFabric closes that gap.
+> NeuroFabric closes that gap.
 
 **The gap nobody owns:**
 
-| | Neuromorphic (Loihi, SpiNNaker) | Inference ASIC (Groq, Apple ANE) | **NeuronFabric** |
+| | Neuromorphic (Loihi, SpiNNaker) | Inference ASIC (Groq, Apple ANE) | **NeuroFabric** |
 |---|---|---|---|
 | On-chip weight update | ✅ STDP only | ❌ | ✅ Adam / SGD |
 | Gradient-descent compatible | ❌ | — | ✅ |
@@ -20,7 +20,7 @@
 
 **One-line positioning:**
 > *Neuromorphic chips learn the wrong way. Inference ASICs don't learn at all.
-> NeuronFabric is the first architecture that learns the right way —
+> NeuroFabric is the first architecture that learns the right way —
 > gradient descent, Adam, transformer-compatible — entirely on chip.*
 
 ---
@@ -29,7 +29,7 @@
 
 ### Paper 1 — Algorithm *(submit now)*
 
-**Title:** *NeuronFabric: BF16 Adam for On-Chip Transformer Training*
+**Title:** *NeuroFabric: BF16 Adam for On-Chip Transformer Training*
 
 **Core claim:**
 > BF16 local Adam converges identically to GPU FP32 Adam on a 1M parameter
@@ -72,7 +72,7 @@
 
 ### Paper 3 — Implementation *(after FPGA contractor delivers)*
 
-**Title:** *NeuronFabric FPGA: 1M Parameter Transformer Training at <10W*
+**Title:** *NeuroFabric FPGA: 1M Parameter Transformer Training at <10W*
 
 **Core claim:**
 > First FPGA implementation of a 1M parameter transformer with full BF16 Adam

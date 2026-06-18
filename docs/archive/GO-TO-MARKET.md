@@ -1,4 +1,4 @@
-# NeuronFabric — Go-To-Market Strategy
+# NeuroFabric — Go-To-Market Strategy
 
 ---
 
@@ -91,7 +91,7 @@ Open source silicon gets **OpenMPW priority** — Google prefers open designs fo
 - This is the moment the community becomes invested
 
 ### Step 4 — Crowd Supply campaign (after Phase 1 benchmark)
-- Sell NeuronFabric FPGA dev kits (Kintex-7 + interface board)
+- Sell NeuroFabric FPGA dev kits (Kintex-7 + interface board)
 - Target: $50–200K
 - Backers become community members, bug reporters, early customers
 - Funds Phase 3 silicon without diluting equity

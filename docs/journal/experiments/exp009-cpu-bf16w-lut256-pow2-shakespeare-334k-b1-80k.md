@@ -95,7 +95,7 @@ To the
 ## Raw training log (selected checkpoints)
 
 ```
-NeuronFabric TrainApp v1.1.0+983943d4a55468e5b6915c15296640b6a0dd6216  |  Apache 2.0 License  |  github.com/neuro-fabric
+NeuroFabric TrainApp v1.1.0+983943d4a55468e5b6915c15296640b6a0dd6216  |  Apache 2.0 License  |  github.com/neuro-fabric
 
 Dataset: Shakespeare, vocab=256, train=1,039,854, val=115,540
 New model (CPU Adam BF16 weights): seqLen=128 embedDim=88 heads=4 ff=264 layers=4  exp=LUT-256
