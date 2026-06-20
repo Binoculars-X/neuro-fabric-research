@@ -11,7 +11,7 @@ Experimental results, scaling data, and paper drafts for the NeuroFabric on-chip
 
 ## Preprint & Prior-Art Disclosure
 
-**[NeuroFabric: A Software Reference Architecture for On-Chip Transformer Training with Local Adam](docs/NeuroFabric_preprint.pdf)**
+**[NeuronFabric: A Software Reference Architecture for On-Chip Transformer Training with Local Adam](docs/neuronFabric_preprint.pdf)**
 
 BF16W Weights, Vocabulary Budget, and a Path to FPGA Training without a Host CPU.
 
