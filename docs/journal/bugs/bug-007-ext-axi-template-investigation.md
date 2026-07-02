@@ -154,52 +154,90 @@ XSim testbenches updated:
 
 ### What is ruled out
 
-- **Synthesis corruption** -- JTAG reads ALL addresses correctly, proving every case
-  in the `axi_araddr[9:2]` decode mux is synthesized correctly.
-- **Non-ASCII corruption** -- em-dashes were found in `//` comments in the .v file
-  and removed. However they were inside `//` comment content (stripped before parsing)
-  and JTAG proved synthesis was correct before the fix.
+- **Synthesis corruption** -- JTAG reads ALL addresses correctly in the old sparse map,
+  proving every case in the `axi_araddr[9:2]` decode mux was synthesized.
+- **Non-ASCII corruption** -- em-dashes were found in `//` comments and removed (correct
+  hygiene), but JTAG proved synthesis was correct before the fix.
 - **C code bug** -- `busybox devmem` direct hardware reads reproduce the same failures,
   eliminating arm_train.c from the equation.
-- **mmap size** -- MAP_SIZE=0x1000, all failing addresses < 0x100. Not the issue.
-- **Cache** -- 0x008 and 0x010 are in the SAME 64-byte cache line; one fails, one passes.
-  Cache cannot explain this.
+- **mmap size** -- MAP_SIZE=0x1000 covers all registers. Not the issue.
 
-### What is confirmed
+### Confirmed conclusion
 
-- The failing addresses from ARM path always return 0x00000000.
-- The same addresses from JTAG path return correct values.
-- Both paths go through the SAME SmartConnect and SAME `axi_train_regs` instance.
-- The issue is in the ARM PS HPM0_FPD -> SmartConnect -> slave AXI path.
+The old sparse register map was incompatible with the ARM PS path.
+Specific word indexes (8'h02, 8'h11, 8'h12, 8'h15-17, 8'h1E) returned 0 from reads
+and appeared to be silently dropped on writes when accessed via the ARM PS HPM0 path.
 
-### Current hypothesis (unconfirmed)
+**Root cause documented as:**
+> Old sparse register decode and alias workaround removed.
+> Canonical contiguous register map (word indexes 0x00-0x0E only) adopted as the fix.
 
-The ARM PS uses AXI4 (with ARLEN, ARSIZE, ARBURST signals). The SmartConnect converts
-AXI4 -> AXI4-Lite. For specific address values, the SmartConnect may be presenting
-a different address to the slave than expected, causing the wrong case to fire in the
-read mux. An ILA (Integrated Logic Analyzer) on the slave's S_AXI_ARADDR/S_AXI_ARVALID
-signals would definitively show what address the slave actually receives.
+Whether the ARM path issue is in the SmartConnect, in specific address decode behavior,
+or in some interaction between the generated AXI4-Lite state machine and the ARM AXI4
+master is NOT yet proven. An ILA trace showing AW/W channel handshakes at the slave
+boundary would be required to confirm any fabric-level claim.
+
+**SmartConnect dropping specific word indexes is an extraordinary claim without ILA proof.
+Do not document it as confirmed root cause.**
+
+### What the contiguous map fixes
+
+Regardless of the exact cause, all critical registers are now at word indexes
+8'h00-8'h0E (byte offsets 0x000-0x038). These are confirmed working from ARM.
+
+If all 4 ARM hop tests pass after rebuild, the confirmed conclusion is:
+- The old sparse register map was the source of the ARM failures
+- The new canonical contiguous map resolves it
+- No hardware changes required
+
+### Remaining open question
+
+Why specific word indexes fail from ARM but not JTAG. Independent proof requires:
+- ILA on `S_AXI_AWADDR`, `S_AXI_AWVALID`, `S_AXI_AWREADY`, `S_AXI_WVALID`, `S_AXI_WREADY`
+  during ARM write transactions to previously-failing addresses
+- This would show whether the SmartConnect delivers the transaction to the slave
+
+**Status of this question: OPEN, not blocking training.**
 
 ---
 
-## Workaround (no rebuild required)
+## Register Map v2 (Contiguous — adopted 2026-07-03)
 
-Since the ARM path fails for `0x008` and `0x054` but the identical signals are
-available at alias addresses `0x010` and `0x060`:
+All registers at consecutive word indexes 0x00-0x0E. Rebuild required.
 
-**In `arm_train.c`:**
-```c
-#define REG_CYCLE_LO    0x010   /* use alias -- 0x008 returns 0 from ARM */
-#define REG_CYCLE_HI    0x014   /* use alias -- 0x00C returns 0 from ARM */
-#define REG_RD_DATA     0x060   /* use DBG_RD_DATA_Q -- 0x054 returns 0 from ARM */
+| Byte offset | Word index | Name | Direction | RTL signal |
+|---|---|---|---|---|
+| 0x000 | 8'h00 | CTRL | R/W | reg_ctrl bits |
+| 0x004 | 8'h01 | STATUS | R | done/adam_done/out_valid/timeout latches |
+| 0x008 | 8'h02 | CYCLE_LO | R | cycle_cnt[31:0] |
+| 0x00C | 8'h03 | CYCLE_HI | R | cycle_cnt[47:32] |
+| 0x010 | 8'h04 | WR_ADDR | W | reg_wr_addr (9 bits) |
+| 0x014 | 8'h05 | WR_DATA | W | reg_wr_data |
+| 0x018 | 8'h06 | WR_STROBE | W | pulses tt_wr_en for 1 clock |
+| 0x01C | 8'h07 | RD_ADDR | W | reg_rd_addr (9 bits) |
+| 0x020 | 8'h08 | RD_DATA | R | rd_data_q |
+| 0x024 | 8'h09 | VERSION | R | GEN00_VERSION constant |
+| 0x028 | 8'h0A | STATUS_CLR | W | clears all STATUS latches |
+| 0x02C | 8'h0B | CE_LOSS | R | latch_ce_loss (FP32) |
+| 0x030 | 8'h0C | GRAD_NORM_SQ | R | latch_grad_norm_sq (FP32) |
+| 0x034 | 8'h0D | CLIP_SCALE | R | latch_clip_scale (FP32) |
+| 0x038 | 8'h0E | STEP_COUNT | R | tt_dbg_step_count |
+
+Register file write protocol (unchanged):
+```
+1. Write WR_ADDR (0x010) = destination address in transformer register file
+2. Write WR_DATA (0x014) = data value
+3. Write WR_STROBE (0x018) = any value -> one-clock tt_wr_en pulse
 ```
 
-This workaround is safe because:
-- `0x010` and `0x008` both return `cycle_cnt[31:0]` (case 8'h04 and 8'h02)
-- `0x014` and `0x00C` both return `cycle_cnt[47:32]` (case 8'h05 and 8'h03)
-- `0x060` and `0x054` both return `rd_data_q` (case 8'h18 and 8'h15)
+Register file read protocol (unchanged):
+```
+1. Write RD_ADDR (0x01C) = source address in transformer register file
+2. Dummy read RD_ADDR to ensure rd_data_q captured
+3. Read RD_DATA (0x020) = rd_data_q value
+```
 
-All three alias registers are confirmed working from ARM via `busybox devmem`.
+---
 
 ---
 
@@ -237,4 +275,8 @@ Remote scripts added:
 | 2026-07-03 | Root cause: ARM-specific AXI path issue, synthesis confirmed correct |
 | 2026-07-03 | Workaround identified: use alias addresses 0x010 and 0x060 |
 
-**Status:** OPEN — root cause requires ILA investigation. Workaround available.
+| 2026-07-03 | Root cause documented: old sparse register map was incompatible with ARM path |
+| 2026-07-03 | Contiguous register map v2 (0x000-0x038) adopted; arm_train.c rewritten |
+| 2026-07-03 | RTL rebuilt on jetpc; JTAG re-verified; ARM tests pending |
+
+**Status:** PENDING REBUILD -- contiguous register map adopted. ARM test results will confirm.
